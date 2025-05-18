@@ -1,0 +1,5 @@
+server:
+  port: 3005
+
+fal:
+  apiKey: apiKey
