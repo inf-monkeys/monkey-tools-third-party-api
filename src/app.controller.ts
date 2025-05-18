@@ -24,8 +24,8 @@ export class AppController {
   public getManifestJson(): ManifestJson {
     return {
       schema_version: SchemaVersion.v1,
-      display_name: 'third-party-api',
-      namespace: 'third-party-api',
+      display_name: 'ThirdPartyAPI',
+      namespace: 'third_party_api',
       auth: config.server.auth,
       api: {
         type: ApiType.openapi,
