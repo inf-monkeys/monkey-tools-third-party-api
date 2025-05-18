@@ -23,23 +23,23 @@ export class FalAiController {
 
   @Post('subscribe')
   @ApiOperation({
-    summary: '调用 API 端点（订阅模式）',
-    description: '调用一个 API 端点，并使用订阅模式接收结果',
+    summary: 'Fal AI 端点（订阅模式）',
+    description: '调用一个 Fal AI 端点，并使用订阅模式接收结果',
   })
   @MonkeyToolName('fal_ai_endpoint_subscribe')
   @MonkeyToolCategories(['gen-image'])
   @MonkeyToolIcon('emoji:🔔:#98ae36')
   @MonkeyToolDisplayName({
-    'zh-CN': '调用 API 端点（订阅模式）',
-    'en-US': 'Call API Endpoint (Subscription Mode)',
+    'zh-CN': '调用 Fal AI 端点（订阅模式）',
+    'en-US': 'Call Fal AI Endpoint (Subscription Mode)',
   })
   @MonkeyToolInput([
     {
       type: 'string',
       name: 'endpoint',
       displayName: {
-        'zh-CN': 'API 端点',
-        'en-US': 'API Endpoint',
+        'zh-CN': 'Fal AI 端点',
+        'en-US': 'Fal AI Endpoint',
       },
       default: '',
       required: true,
@@ -109,11 +109,7 @@ export class FalAiController {
   public async subscribe(@Body() body: FalAiRequestDto) {
     return {
       code: 200,
-      ...(await this.falAiService.subscribe(
-        body.endpoint,
-        body.input,
-        body.apiKey,
-      )),
+      ...(await this.falAiService.subscribe(body)),
     };
   }
 }

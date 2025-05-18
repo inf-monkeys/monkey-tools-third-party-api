@@ -8,7 +8,10 @@ export const FalAiRequestSchema = z.object({
     invalid_type_error: 'API 端点必须是字符串',
   }),
   input: z.any().optional(),
-  apiKey: z.string().optional(),
+  credential: z.object({
+    type: z.string(),
+    encryptedData: z.string(),
+  }).optional().describe('凭证信息'),
 });
 
 // 基于 Zod 模式创建 DTO 类
