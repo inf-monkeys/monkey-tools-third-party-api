@@ -53,19 +53,6 @@ export class FalAiController {
       },
       default: {},
     },
-    {
-      name: 'apiKey',
-      type: 'string',
-      displayName: {
-        'zh-CN': '指定 API Key',
-        'en-US': 'Specify API Key',
-      },
-      description: {
-        'zh-CN': '默认为团队或租户级别配置 key',
-        'en-US': 'Default to the team or tenant level configured key',
-      },
-      default: '',
-    },
   ])
   @MonkeyToolOutput([
     {
