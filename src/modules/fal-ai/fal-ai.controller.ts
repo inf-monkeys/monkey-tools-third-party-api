@@ -26,8 +26,8 @@ export class FalAiController {
     summary: '调用 API 端点（订阅模式）',
     description: '调用一个 API 端点，并使用订阅模式接收结果',
   })
-  @MonkeyToolName('fal-ai-endpoint-subscribe')
-  @MonkeyToolCategories(['fal-ai'])
+  @MonkeyToolName('fal_ai_endpoint_subscribe')
+  @MonkeyToolCategories(['gen-image'])
   @MonkeyToolIcon('emoji:🔔:#98ae36')
   @MonkeyToolDisplayName({
     'zh-CN': '调用 API 端点（订阅模式）',
