@@ -11,12 +11,12 @@ import {
 } from '@/common/decorators/monkey-block-api-extensions.decorator';
 import { AuthGuard } from '@/common/guards/auth.guard';
 import { FalAiRequestDto } from '@/common/schemas/fal-ai';
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FalAiService } from './fal-ai.service';
 
 @Controller('fal-ai')
-// @UseGuards(new AuthGuard())
+@UseGuards(new AuthGuard())
 @ApiTags('Fal AI')
 export class FalAiController {
   constructor(private readonly falAiService: FalAiService) {}
@@ -69,12 +69,32 @@ export class FalAiController {
   ])
   @MonkeyToolOutput([
     {
-      name: 'result',
+      name: 'code',
+      displayName: {
+        'zh-CN': '状态码',
+        'en-US': 'Status Code',
+      },
+      type: 'number',
+      description: {
+        'zh-CN': '200 表示成功，其他表示失败',
+        'en-US': '200 means success, other means failure',
+      },
+    },
+    {
+      name: 'data',
       displayName: {
         'zh-CN': '结果',
         'en-US': 'Result',
       },
       type: 'json',
+    },
+    {
+      name: 'requestId',
+      displayName: {
+        'zh-CN': '请求 ID',
+        'en-US': 'Request ID',
+      },
+      type: 'string',
     },
   ])
   @MonkeyToolExtra({
@@ -86,14 +106,14 @@ export class FalAiController {
       required: config.fal.apiKey ? false : true,
     },
   ])
-  public async subscribe(
-    @Body() body: FalAiRequestDto,
-  ) {
-    console.log(body);
-    
-    const result = await this.falAiService.subscribe(body.endpoint, body.input, body.apiKey);
+  public async subscribe(@Body() body: FalAiRequestDto) {
     return {
-      result,
+      code: 200,
+      ...(await this.falAiService.subscribe(
+        body.endpoint,
+        body.input,
+        body.apiKey,
+      )),
     };
   }
 }

@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, RequestMethod, ValidationPipe } from '@nestjs/common';
+import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
 import { APP_PIPE } from '@nestjs/core';
 import { ZodValidationPipe } from '@anatine/zod-nestjs';
 import { AppController } from './app.controller';

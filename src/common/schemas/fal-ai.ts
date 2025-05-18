@@ -7,12 +7,9 @@ export const FalAiRequestSchema = z.object({
     required_error: 'API 端点是必填的',
     invalid_type_error: 'API 端点必须是字符串',
   }),
-  input: z.any({
-    required_error: '输入内容是必填的',
-  }),
+  input: z.any().optional(),
   apiKey: z.string().optional(),
 });
 
 // 基于 Zod 模式创建 DTO 类
 export class FalAiRequestDto extends createZodDto(FalAiRequestSchema) {}
-
