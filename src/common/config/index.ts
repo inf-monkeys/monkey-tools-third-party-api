@@ -23,11 +23,16 @@ export interface RedisConfig {
   prefix: string;
 }
 
+export interface JimengConfig {
+  apiKey?: string;
+}
+
 export interface Config {
   server: ServerConfig;
   fal: FalConfig;
   proxy: ProxyConfig;
   redis: RedisConfig;
+  jimeng: JimengConfig;
 }
 
 const port = readConfig('server.port', 3000);
@@ -55,6 +60,9 @@ export const config: Config = {
   redis: {
     url: readConfig('redis.url'),
     prefix: readConfig('redis.prefix', 'monkeys:third-party-api:'),
+  },
+  jimeng: {
+    apiKey: readConfig('jimeng.apiKey'),
   },
 };
 

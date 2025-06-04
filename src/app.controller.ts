@@ -10,7 +10,7 @@ import {
 
 @Controller()
 export class AppController {
-  constructor() {}
+  constructor() { }
 
   @Get('/healthz')
   public async healthz() {
@@ -46,6 +46,21 @@ export class AppController {
               type: 'notice',
               name: 'docs',
             },
+            {
+              displayName: 'API Key',
+              type: 'string',
+              name: 'api_key',
+              required: true,
+            },
+          ],
+        },
+        {
+          name: 'jimeng',
+          type: CredentialAuthType.AKSK,
+          displayName: '即梦',
+          logo: '',
+          // @ts-ignore
+          properties: [
             {
               displayName: 'API Key',
               type: 'string',

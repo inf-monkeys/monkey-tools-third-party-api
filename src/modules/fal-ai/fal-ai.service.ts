@@ -8,11 +8,7 @@ export class FalAiService {
   constructor() {}
 
   async subscribe(inputData: FalAiRequestDto) {
-    const {
-      endpoint,
-      input,
-      credential,
-    } = inputData;
+    const { endpoint, input, credential } = inputData;
     let apiKey = '';
     if (credential) {
       const credentialData = JSON.parse(credential.encryptedData);
