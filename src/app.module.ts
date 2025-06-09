@@ -8,9 +8,10 @@ import { CommonMiddleware } from './common/middlewares/common.middleware';
 import { LogModule } from './modules/log/log.module';
 import { FalAiModule } from './modules/fal-ai/fal-ai.module';
 import { JimengModule } from './modules/jimeng/jimeng.module';
+import { TripoModule } from './modules/tripo/tripo.module';
 
 @Module({
-  imports: [CommonModule, FalAiModule, LogModule, JimengModule],
+  imports: [CommonModule, FalAiModule, LogModule, JimengModule, TripoModule],
   controllers: [AppController],
   providers: [
     AppService,
