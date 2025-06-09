@@ -27,12 +27,17 @@ export interface JimengConfig {
   apiKey?: string;
 }
 
+export interface TripoConfig {
+  apiKey?: string;
+}
+
 export interface Config {
   server: ServerConfig;
   fal: FalConfig;
   proxy: ProxyConfig;
   redis: RedisConfig;
   jimeng: JimengConfig;
+  tripo: TripoConfig;
 }
 
 const port = readConfig('server.port', 3000);
@@ -63,6 +68,9 @@ export const config: Config = {
   },
   jimeng: {
     apiKey: readConfig('jimeng.apiKey'),
+  },
+  tripo: {
+    apiKey: readConfig('tripo.apiKey'),
   },
 };
 
