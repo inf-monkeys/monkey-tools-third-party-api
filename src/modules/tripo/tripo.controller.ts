@@ -36,40 +36,29 @@ export class TripoController {
   @MonkeyToolInput([
     {
       type: 'string',
-      name: 'prompt',
+      name: 'type',
       displayName: {
-        'zh-CN': '文本描述',
-        'en-US': 'Text Description',
+        'zh-CN': '请求类型',
+        'en-US': 'Request Type',
       },
-      default: '',
-      required: true,
+      default: 'text_to_model',
+      description: {
+        'zh-CN': '可选值: text_to_model, image_to_model, multiview_to_model, texture_model, refine_model',
+        'en-US': 'Available values: text_to_model, image_to_model, multiview_to_model, texture_model, refine_model',
+      },
     },
     {
-      name: 'style',
-      type: 'string',
+      name: 'input',
+      type: 'json',
       displayName: {
-        'zh-CN': '风格',
-        'en-US': 'Style',
+        'zh-CN': '输入参数',
+        'en-US': 'Input Parameters',
       },
-      default: '',
-    },
-    {
-      name: 'model_version',
-      type: 'string',
-      displayName: {
-        'zh-CN': '模型版本',
-        'en-US': 'Model Version',
+      default: {},
+      description: {
+        'zh-CN': '所有请求参数，如 prompt、file、files 等',
+        'en-US': 'All request parameters, such as prompt, file, files, etc.',
       },
-      default: '',
-    },
-    {
-      name: 'negative_prompt',
-      type: 'string',
-      displayName: {
-        'zh-CN': '负面提示词',
-        'en-US': 'Negative Prompt',
-      },
-      default: '',
     },
   ])
   @MonkeyToolOutput([
@@ -128,13 +117,29 @@ export class TripoController {
     },
   ])
   public async generate(@Body() body: TripoRequestDto) {
+    // 处理输入参数
+    let processedBody: any = { ...body };
+    
+    // 使用类型断言处理 input 字段
+    const bodyWithInput = body as any;
+    
+    // 如果存在 input 字段且为对象，将其内容提取到顶层
+    if (bodyWithInput.input && typeof bodyWithInput.input === 'object') {
+      // 将 input 中的内容合并到顶层
+      const { input, ...restBody } = bodyWithInput;
+      processedBody = { ...restBody, ...input };
+      
+      // 输出处理后的请求体结构（仅用于调试）
+      console.log('处理后的请求体：', JSON.stringify(processedBody, null, 2));
+    }
+    
     // 创建任务执行器函数
     const taskExecutor = async () => {
-      return this.tripoService.generateModel(body);
+      return this.tripoService.generateModel(processedBody);
     };
     
     // 执行任务并轮询结果
-    const result = await this.tripoService.executeTaskWithPolling(taskExecutor, body.credential);
+    const result = await this.tripoService.executeTaskWithPolling(taskExecutor, processedBody.credential);
     
     return {
       code: 200,
