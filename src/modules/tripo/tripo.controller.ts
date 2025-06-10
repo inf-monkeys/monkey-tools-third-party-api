@@ -11,7 +11,7 @@ import {
 } from '@/common/decorators/monkey-block-api-extensions.decorator';
 import { AuthGuard } from '@/common/guards/auth.guard';
 import { TripoRequestDto } from '@/common/schemas/tripo';
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Logger } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TripoService } from './tripo.service';
 
@@ -19,6 +19,7 @@ import { TripoService } from './tripo.service';
 @UseGuards(new AuthGuard())
 @ApiTags('Tripo 3D')
 export class TripoController {
+  private readonly logger = new Logger(TripoController.name);
   constructor(private readonly tripoService: TripoService) {}
 
   @Post('generate')
@@ -124,15 +125,33 @@ export class TripoController {
 
     // 使用类型断言处理 input 字段
     const bodyWithInput = body as any;
+    
+    // 输出原始请求体（用于调试）
+    this.logger.log('原始请求体：', JSON.stringify(bodyWithInput, null, 2));
 
-    // 如果存在 input 字段且为对象，将其内容提取到顶层
-    if (bodyWithInput.input && typeof bodyWithInput.input === 'object') {
-      // 将 input 中的内容合并到顶层
-      const { input, ...restBody } = bodyWithInput;
-      processedBody = { ...restBody, ...input };
-
-      // 输出处理后的请求体结构（仅用于调试）
-      console.log('处理后的请求体：', JSON.stringify(processedBody, null, 2));
+    // 如果存在 input 字段，处理不同类型的 input
+    if (bodyWithInput.input) {
+      if (typeof bodyWithInput.input === 'object') {
+        // 如果 input 是对象，将其内容合并到顶层
+        const { input, ...restBody } = bodyWithInput;
+        processedBody = { ...restBody, ...input };
+        this.logger.log('处理对象类型 input 后的请求体：', JSON.stringify(processedBody, null, 2));
+      } else if (typeof bodyWithInput.input === 'string') {
+        // 如果 input 是字符串，尝试解析为 JSON 对象
+        try {
+          const inputObj = JSON.parse(bodyWithInput.input);
+          const { input, ...restBody } = bodyWithInput;
+          processedBody = { ...restBody, ...inputObj };
+          this.logger.log('处理字符串类型 input 后的请求体：', JSON.stringify(processedBody, null, 2));
+        } catch (error) {
+          this.logger.error('解析 input 字符串失败:', error);
+          // 解析失败时保持原始请求体不变
+        }
+      } else {
+        this.logger.warn(`未处理的 input 类型: ${typeof bodyWithInput.input}`);
+      }
+    } else {
+      this.logger.log('请求体中没有 input 字段');
     }
 
     // 创建任务执行器函数

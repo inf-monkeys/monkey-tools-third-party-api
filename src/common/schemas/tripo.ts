@@ -72,6 +72,14 @@ export const TripoRequestSchema = z.object({
   
   // 直接提供 API 密钥
   apiKey: z.string().optional(),
+  
+  // 支持通过 input 字段传递参数
+  input: z.any().optional().describe('可以是对象或JSON字符串，包含请求参数'),
+  
+  // 高级配置
+  __advancedConfig: z.object({
+    timeout: z.number().optional()
+  }).optional(),
 });
 
 // 基于 Zod 模式创建 DTO 类

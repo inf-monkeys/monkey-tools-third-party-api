@@ -35,7 +35,7 @@ export class TripoService {
             }
           } catch (jsonError) {
             // 如果不是有效的JSON，则直接使用encryptedData作为API密钥
-            this.logger.log('使用encryptedData作为API密钥');
+            // 不输出敏感信息的日志
             return credential.encryptedData;
           }
         } catch (error) {
@@ -237,25 +237,32 @@ export class TripoService {
 
     // 轮询任务状态
     let attempts = 0;
+    this.logger.log(`开始轮询任务状态，任务ID: ${taskId}`);
+    
     while (attempts < maxAttempts) {
+      attempts++;
       // 等待一段时间
       await new Promise(resolve => setTimeout(resolve, intervalMs));
 
+      this.logger.log(`轮询任务状态 (第 ${attempts}/${maxAttempts} 次)`);
+      
       // 查询任务状态
       const taskStatus = await this.queryTaskStatus(taskId, credential);
 
       // 检查任务是否完成
       if (taskStatus.status === 'success') {
+        this.logger.log(`任务成功完成! 任务ID: ${taskId}`);
+        this.logger.log(`轮询总次数: ${attempts}/${maxAttempts}`);
+        this.logger.log(`响应数据: ${JSON.stringify(taskStatus, null, 2)}`);
         return taskStatus;
       }
 
       // 检查任务是否失败
       if (taskStatus.status === 'failed') {
+        this.logger.error(`任务执行失败! 任务ID: ${taskId}`);
+        this.logger.error(`失败原因: ${JSON.stringify(taskStatus.output)}`);
         throw new Error(`任务执行失败: ${JSON.stringify(taskStatus.output)}`);
       }
-
-      // 增加尝试次数
-      attempts++;
     }
 
     // 超过最大尝试次数
