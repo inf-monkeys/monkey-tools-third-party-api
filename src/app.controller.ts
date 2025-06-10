@@ -69,6 +69,21 @@ export class AppController {
             },
           ],
         },
+        {
+          name: 'tripo-api',
+          type: CredentialAuthType.AKSK,
+          displayName: 'Tripo API',
+          logo: '',
+          // @ts-ignore
+          properties: [
+            {
+              displayName: 'API Key',
+              type: 'string',
+              name: 'api_key',
+              required: true,
+            },
+          ],
+        },
       ],
     };
   }
