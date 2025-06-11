@@ -134,6 +134,8 @@ export async function processContentUrls(content: any): Promise<any> {
     return content;
   }
 
+  logger.info(`S3 已配置，开始处理内容`);
+
   // 如果是字符串类型
   if (typeof content === 'string') {
     let processedContent = content;

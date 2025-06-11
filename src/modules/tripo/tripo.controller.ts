@@ -14,7 +14,6 @@ import { TripoRequestDto } from '@/common/schemas/tripo';
 import { Body, Controller, Post, UseGuards, Logger } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TripoService } from './tripo.service';
-import { processContentUrls } from '@/common/utils/output';
 
 @Controller('tripo')
 @UseGuards(new AuthGuard())
