@@ -6,7 +6,7 @@ import { JimengGenerateRequestDto } from '@/common/schemas/jimeng';
 @Injectable()
 export class JimengService {
   private readonly baseUrl = 'https://jimeng-free-api-zi94.onrender.com/v1';
-  private readonly defaultModel = 'jimeng-2.0pro';
+  private readonly defaultModel = 'jimeng-2.0-pro';
 
   constructor() {}
 
@@ -25,7 +25,7 @@ export class JimengService {
     const response = await axios.post(
       `${this.baseUrl}/images/generations`,
       {
-        model: this.defaultModel,
+        model: inputData.model || this.defaultModel,
         prompt: inputData.prompt,
         negativePrompt: inputData.negativePrompt || '',
         width: inputData.width || 1024,

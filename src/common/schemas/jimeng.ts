@@ -9,6 +9,7 @@ export const JimengGenerateRequestSchema = z.object({
     required_error: '提示词是必填的',
     invalid_type_error: '提示词必须是字符串',
   }),
+  model: z.string().optional().describe('模型版本，默认为 jimeng-2.0-pro'),
   negativePrompt: z.string().optional().default(''),
   width: z
     .number({
