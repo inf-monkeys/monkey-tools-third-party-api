@@ -20,7 +20,7 @@ import { TripoService } from './tripo.service';
 @ApiTags('Tripo 3D')
 export class TripoController {
   private readonly logger = new Logger(TripoController.name);
-  constructor(private readonly tripoService: TripoService) {}
+  constructor(private readonly tripoService: TripoService) { }
 
   @Post('generate')
   @ApiOperation({
@@ -125,7 +125,7 @@ export class TripoController {
 
     // 使用类型断言处理 input 字段
     const bodyWithInput = body as any;
-    
+
     // 输出原始请求体（用于调试）
     this.logger.log('原始请求体：', JSON.stringify(bodyWithInput, null, 2));
 
@@ -135,14 +135,20 @@ export class TripoController {
         // 如果 input 是对象，将其内容合并到顶层
         const { input, ...restBody } = bodyWithInput;
         processedBody = { ...restBody, ...input };
-        this.logger.log('处理对象类型 input 后的请求体：', JSON.stringify(processedBody, null, 2));
+        this.logger.log(
+          '处理对象类型 input 后的请求体：',
+          JSON.stringify(processedBody, null, 2),
+        );
       } else if (typeof bodyWithInput.input === 'string') {
         // 如果 input 是字符串，尝试解析为 JSON 对象
         try {
           const inputObj = JSON.parse(bodyWithInput.input);
           const { input, ...restBody } = bodyWithInput;
           processedBody = { ...restBody, ...inputObj };
-          this.logger.log('处理字符串类型 input 后的请求体：', JSON.stringify(processedBody, null, 2));
+          this.logger.log(
+            '处理字符串类型 input 后的请求体：',
+            JSON.stringify(processedBody, null, 2),
+          );
         } catch (error) {
           this.logger.error('解析 input 字符串失败:', error);
           // 解析失败时保持原始请求体不变

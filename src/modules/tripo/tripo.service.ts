@@ -3,6 +3,7 @@ import { TripoRequestDto } from '@/common/schemas/tripo';
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { processContentUrls } from '@/common/utils/output';
 
 @Injectable()
 export class TripoService {
@@ -10,7 +11,7 @@ export class TripoService {
   private readonly apiBaseUrl = 'https://api.tripo3d.ai/v2/openapi';
   private readonly apiKey: string = config.tripo?.apiKey || '';
 
-  constructor(private readonly httpService: HttpService) { }
+  constructor(private readonly httpService: HttpService) {}
 
   /**
    * 从凭证对象中获取API密钥
@@ -114,11 +115,13 @@ export class TripoService {
           break;
 
         case 'texture_model':
-          if (original_model_task_id) requestBody.original_model_task_id = original_model_task_id;
+          if (original_model_task_id)
+            requestBody.original_model_task_id = original_model_task_id;
           break;
 
         case 'refine_model':
-          if (draft_model_task_id) requestBody.draft_model_task_id = draft_model_task_id;
+          if (draft_model_task_id)
+            requestBody.draft_model_task_id = draft_model_task_id;
           break;
       }
 
@@ -154,7 +157,7 @@ export class TripoService {
             this.httpService.post(`${this.apiBaseUrl}/task`, requestBody, {
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKeyValue}`,
+                Authorization: `Bearer ${apiKeyValue}`,
               },
               timeout: 30000, // 30秒超时
             }),
@@ -169,7 +172,7 @@ export class TripoService {
           }
 
           // 等待一段时间后重试
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
       }
 
@@ -181,7 +184,9 @@ export class TripoService {
       return { taskId };
     } catch (error: any) {
       this.logger.error('请求失败:', error.response?.data || error.message);
-      throw new Error(`Tripo API 请求失败: ${error.response?.data?.message || error.message}`);
+      throw new Error(
+        `Tripo API 请求失败: ${error.response?.data?.message || error.message}`,
+      );
     }
   }
 
@@ -200,7 +205,7 @@ export class TripoService {
       const response = await firstValueFrom(
         this.httpService.get(`${this.apiBaseUrl}/task/${taskId}`, {
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
           },
         }),
       );
@@ -213,8 +218,13 @@ export class TripoService {
         output: response.data?.data?.output,
       };
     } catch (error: any) {
-      this.logger.error(`查询任务状态失败 (${taskId}):`, error.response?.data || error.message);
-      throw new Error(`查询任务状态失败: ${error.response?.data?.message || error.message}`);
+      this.logger.error(
+        `查询任务状态失败 (${taskId}):`,
+        error.response?.data || error.message,
+      );
+      throw new Error(
+        `查询任务状态失败: ${error.response?.data?.message || error.message}`,
+      );
     }
   }
 
@@ -238,14 +248,14 @@ export class TripoService {
     // 轮询任务状态
     let attempts = 0;
     this.logger.log(`开始轮询任务状态，任务ID: ${taskId}`);
-    
+
     while (attempts < maxAttempts) {
       attempts++;
       // 等待一段时间
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
 
       this.logger.log(`轮询任务状态 (第 ${attempts}/${maxAttempts} 次)`);
-      
+
       // 查询任务状态
       const taskStatus = await this.queryTaskStatus(taskId, credential);
 
@@ -254,7 +264,7 @@ export class TripoService {
         this.logger.log(`任务成功完成! 任务ID: ${taskId}`);
         this.logger.log(`轮询总次数: ${attempts}/${maxAttempts}`);
         this.logger.log(`响应数据: ${JSON.stringify(taskStatus, null, 2)}`);
-        return taskStatus;
+        return processContentUrls(taskStatus);
       }
 
       // 检查任务是否失败

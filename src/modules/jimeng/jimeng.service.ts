@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { config } from '@/common/config';
 import { JimengGenerateRequestDto } from '@/common/schemas/jimeng';
+import { processContentUrls } from '@/common/utils/output';
 
 @Injectable()
 export class JimengService {
@@ -47,8 +48,10 @@ export class JimengService {
       },
     );
 
+    const output = await processContentUrls(response.data);
+
     return {
-      data: response.data,
+      data: output,
       requestId: response.headers['x-request-id'] || '',
     };
   }
