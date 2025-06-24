@@ -35,68 +35,26 @@ export class BflAiController {
   })
   @MonkeyToolInput([
     {
-      type: 'string',
-      name: 'prompt',
+      name: 'input',
+      type: 'json',
       displayName: {
-        'zh-CN': '提示词',
-        'en-US': 'Prompt',
-      },
-      default: '',
-      required: true,
-    },
-    {
-      name: 'input_image',
-      type: 'string',
-      displayName: {
-        'zh-CN': '输入图像',
-        'en-US': 'Input Image',
+        'zh-CN': '输入参数',
+        'en-US': 'Input Parameters',
       },
       description: {
-        'zh-CN': '输入图像的 base64 编码',
-        'en-US': 'Base64 encoded input image',
+        'zh-CN': '包含提示词、输入图像等参数的JSON对象',
+        'en-US': 'JSON object containing prompt, input image and other parameters',
+      },
+      default: {
+        prompt: '',
+        input_image: '',
+        seed: null,
+        aspect_ratio: null,
+        output_format: 'jpeg',
+        safety_tolerance: 2
       },
       required: true,
-    },
-    {
-      name: 'seed',
-      type: 'number',
-      displayName: {
-        'zh-CN': '随机种子',
-        'en-US': 'Seed',
-      },
-      default: null,
-      required: false,
-    },
-    {
-      name: 'aspect_ratio',
-      type: 'string',
-      displayName: {
-        'zh-CN': '宽高比',
-        'en-US': 'Aspect Ratio',
-      },
-      default: null,
-      required: false,
-    },
-    {
-      name: 'output_format',
-      type: 'string',
-      displayName: {
-        'zh-CN': '输出格式',
-        'en-US': 'Output Format',
-      },
-      default: 'jpeg',
-      required: false,
-    },
-    {
-      name: 'safety_tolerance',
-      type: 'number',
-      displayName: {
-        'zh-CN': '安全检查级别',
-        'en-US': 'Safety Tolerance',
-      },
-      default: 2,
-      required: false,
-    },
+    }
   ])
   @MonkeyToolOutput([
     {
@@ -146,9 +104,19 @@ export class BflAiController {
     },
   ])
   public async generate(@Body() body: BflAiRequestDto) {
+    // 处理输入参数
+    let processedBody: any = { ...body };
+    
+    // 如果存在 input 字段，将其内容提取到顶层
+    if (body.input && typeof body.input === 'object') {
+      const { input, ...restBody } = body;
+      processedBody = { ...restBody, ...input };
+      this.bflAiService.logger.log('处理 input 对象后的请求体：', JSON.stringify(processedBody, null, 2));
+    }
+    
     const result = await this.bflAiService.executeRequestWithPolling(
-      () => this.bflAiService.submitRequest(body),
-      body.credential,
+      () => this.bflAiService.submitRequest(processedBody),
+      processedBody.credential,
     );
     return {
       code: 200,
