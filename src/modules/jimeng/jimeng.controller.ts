@@ -45,6 +45,19 @@ export class JimengController {
     },
     {
       type: 'string',
+      name: 'model',
+      displayName: {
+        'zh-CN': '模型版本',
+        'en-US': 'Model Version',
+      },
+      default: 'jimeng-2.0-pro',
+      description: {
+        'zh-CN': '即梦 AI 模型版本，默认为 jimeng-2.0-pro',
+        'en-US': 'Jimeng AI model version, default is jimeng-2.0-pro',
+      },
+    },
+    {
+      type: 'string',
       name: 'negativePrompt',
       displayName: {
         'zh-CN': '反向提示词',

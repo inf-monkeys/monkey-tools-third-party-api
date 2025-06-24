@@ -1,11 +1,21 @@
 import { AuthConfig, AuthType } from '../typings/manifest';
-import { getHostFromUrl } from '../utils';
 import { readConfig } from './readYaml';
 
 export interface ServerConfig {
   port: number;
   auth: AuthConfig;
   appUrl: string;
+}
+
+export interface S3Config {
+  accessKeyId: string;
+  secretAccessKey: string;
+  endpoint: string;
+  region: string;
+  modelBucketName: string;
+  bucket: string;
+  publicAccessUrl: string;
+  forcePathStyle: boolean;
 }
 
 export interface ProxyConfig {
@@ -37,6 +47,7 @@ export interface TripoConfig {
 
 export interface Config {
   server: ServerConfig;
+  s3?: S3Config;
   fal: FalConfig;
   proxy: ProxyConfig;
   redis: RedisConfig;
@@ -59,6 +70,7 @@ export const config: Config = {
     },
     appUrl: readConfig('server.appUrl', `http://localhost:${port}`),
   },
+  s3: readConfig('s3', undefined),
   fal: {
     apiKey: readConfig('fal.apiKey'),
   },

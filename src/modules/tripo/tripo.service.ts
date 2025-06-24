@@ -3,6 +3,7 @@ import { TripoRequestDto } from '@/common/schemas/tripo';
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { processContentUrls } from '@/common/utils/output';
 
 @Injectable()
 export class TripoService {
@@ -23,7 +24,7 @@ export class TripoService {
       if (credential.apiKey) {
         return credential.apiKey;
       }
-      
+
       // 尝试使用encryptedData作为API密钥（如果存在）
       if (credential.encryptedData) {
         try {
@@ -35,7 +36,7 @@ export class TripoService {
             }
           } catch (jsonError) {
             // 如果不是有效的JSON，则直接使用encryptedData作为API密钥
-            this.logger.log('使用encryptedData作为API密钥');
+            // 不输出敏感信息的日志
             return credential.encryptedData;
           }
         } catch (error) {
@@ -43,7 +44,7 @@ export class TripoService {
         }
       }
     }
-    
+
     // 如果凭证中没有API密钥或处理失败，则使用配置中的API密钥
     if (!this.apiKey) {
       throw new Error('没有配置 Tripo 的 API Key，请联系管理员。');
@@ -97,7 +98,7 @@ export class TripoService {
         case 'text_to_model':
           if (prompt) requestBody.prompt = prompt;
           break;
-        
+
         case 'image_to_model':
           // 根据文档，image_to_model 可以使用 file 或 files
           if (file) {
@@ -108,17 +109,19 @@ export class TripoService {
           }
           if (prompt) requestBody.prompt = prompt;
           break;
-        
+
         case 'multiview_to_model':
           if (files && files.length > 0) requestBody.files = files;
           break;
-        
+
         case 'texture_model':
-          if (original_model_task_id) requestBody.original_model_task_id = original_model_task_id;
+          if (original_model_task_id)
+            requestBody.original_model_task_id = original_model_task_id;
           break;
-        
+
         case 'refine_model':
-          if (draft_model_task_id) requestBody.draft_model_task_id = draft_model_task_id;
+          if (draft_model_task_id)
+            requestBody.draft_model_task_id = draft_model_task_id;
           break;
       }
 
@@ -147,14 +150,14 @@ export class TripoService {
       let attempts = 0;
       const maxAttempts = 3;
       let response;
-      
+
       while (attempts < maxAttempts) {
         try {
           response = await firstValueFrom(
             this.httpService.post(`${this.apiBaseUrl}/task`, requestBody, {
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKeyValue}`,
+                Authorization: `Bearer ${apiKeyValue}`,
               },
               timeout: 30000, // 30秒超时
             }),
@@ -163,13 +166,13 @@ export class TripoService {
         } catch (err) {
           attempts++;
           this.logger.warn(`请求失败，尝试重试 (${attempts}/${maxAttempts})`);
-          
+
           if (attempts >= maxAttempts) {
             throw err; // 达到最大重试次数，抛出错误
           }
-          
+
           // 等待一段时间后重试
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
       }
 
@@ -181,7 +184,9 @@ export class TripoService {
       return { taskId };
     } catch (error: any) {
       this.logger.error('请求失败:', error.response?.data || error.message);
-      throw new Error(`Tripo API 请求失败: ${error.response?.data?.message || error.message}`);
+      throw new Error(
+        `Tripo API 请求失败: ${error.response?.data?.message || error.message}`,
+      );
     }
   }
 
@@ -200,7 +205,7 @@ export class TripoService {
       const response = await firstValueFrom(
         this.httpService.get(`${this.apiBaseUrl}/task/${taskId}`, {
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
           },
         }),
       );
@@ -213,8 +218,13 @@ export class TripoService {
         output: response.data?.data?.output,
       };
     } catch (error: any) {
-      this.logger.error(`查询任务状态失败 (${taskId}):`, error.response?.data || error.message);
-      throw new Error(`查询任务状态失败: ${error.response?.data?.message || error.message}`);
+      this.logger.error(
+        `查询任务状态失败 (${taskId}):`,
+        error.response?.data || error.message,
+      );
+      throw new Error(
+        `查询任务状态失败: ${error.response?.data?.message || error.message}`,
+      );
     }
   }
 
@@ -234,30 +244,37 @@ export class TripoService {
   ) {
     // 执行任务获取任务ID
     const { taskId } = await taskExecutor();
-    
+
     // 轮询任务状态
     let attempts = 0;
+    this.logger.log(`开始轮询任务状态，任务ID: ${taskId}`);
+
     while (attempts < maxAttempts) {
+      attempts++;
       // 等待一段时间
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
-      
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+
+      this.logger.log(`轮询任务状态 (第 ${attempts}/${maxAttempts} 次)`);
+
       // 查询任务状态
       const taskStatus = await this.queryTaskStatus(taskId, credential);
-      
+
       // 检查任务是否完成
       if (taskStatus.status === 'success') {
-        return taskStatus;
+        this.logger.log(`任务成功完成! 任务ID: ${taskId}`);
+        this.logger.log(`轮询总次数: ${attempts}/${maxAttempts}`);
+        this.logger.log(`响应数据: ${JSON.stringify(taskStatus, null, 2)}`);
+        return processContentUrls(taskStatus);
       }
-      
+
       // 检查任务是否失败
       if (taskStatus.status === 'failed') {
+        this.logger.error(`任务执行失败! 任务ID: ${taskId}`);
+        this.logger.error(`失败原因: ${JSON.stringify(taskStatus.output)}`);
         throw new Error(`任务执行失败: ${JSON.stringify(taskStatus.output)}`);
       }
-      
-      // 增加尝试次数
-      attempts++;
     }
-    
+
     // 超过最大尝试次数
     throw new Error(`任务执行超时，请稍后查询任务状态: ${taskId}`);
   }

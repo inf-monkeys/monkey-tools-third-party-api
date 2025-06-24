@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { config } from '@/common/config';
 import { JimengGenerateRequestDto } from '@/common/schemas/jimeng';
+import { processContentUrls } from '@/common/utils/output';
 
 @Injectable()
 export class JimengService {
   private readonly baseUrl = 'https://jimeng-free-api-zi94.onrender.com/v1';
-  private readonly defaultModel = 'jimeng-2.0pro';
+  private readonly defaultModel = 'jimeng-2.0-pro';
 
   constructor() {}
 
@@ -25,7 +26,7 @@ export class JimengService {
     const response = await axios.post(
       `${this.baseUrl}/images/generations`,
       {
-        model: this.defaultModel,
+        model: inputData.model || this.defaultModel,
         prompt: inputData.prompt,
         negativePrompt: inputData.negativePrompt || '',
         width: inputData.width || 1024,
@@ -47,8 +48,10 @@ export class JimengService {
       },
     );
 
+    const output = await processContentUrls(response.data);
+
     return {
-      data: response.data,
+      data: output,
       requestId: response.headers['x-request-id'] || '',
     };
   }

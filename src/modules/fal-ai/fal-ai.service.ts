@@ -1,5 +1,6 @@
 import { config } from '@/common/config';
 import { FalAiRequestDto } from '@/common/schemas/fal-ai';
+import { processContentUrls } from '@/common/utils/output';
 import { createFalClient } from '@fal-ai/client';
 import { Injectable } from '@nestjs/common';
 
@@ -27,6 +28,7 @@ export class FalAiService {
       input,
       logs: true,
     });
-    return result;
+    const output = await processContentUrls(result);
+    return output;
   }
 }
