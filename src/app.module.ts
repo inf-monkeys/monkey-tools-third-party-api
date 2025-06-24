@@ -9,9 +9,10 @@ import { LogModule } from './modules/log/log.module';
 import { FalAiModule } from './modules/fal-ai/fal-ai.module';
 import { JimengModule } from './modules/jimeng/jimeng.module';
 import { TripoModule } from './modules/tripo/tripo.module';
+import { BflAiModule } from './modules/bfl-ai/bfl-ai.module';
 
 @Module({
-  imports: [CommonModule, FalAiModule, LogModule, JimengModule, TripoModule],
+  imports: [CommonModule, FalAiModule, LogModule, JimengModule, TripoModule, BflAiModule],
   controllers: [AppController],
   providers: [
     AppService,

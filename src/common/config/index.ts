@@ -18,6 +18,10 @@ export interface FalConfig {
   apiKey?: string;
 }
 
+export interface BflConfig {
+  apiKey?: string;
+}
+
 export interface RedisConfig {
   url: string;
   prefix: string;
@@ -38,6 +42,7 @@ export interface Config {
   redis: RedisConfig;
   jimeng: JimengConfig;
   tripo: TripoConfig;
+  bfl: BflConfig;
 }
 
 const port = readConfig('server.port', 3000);
@@ -71,6 +76,9 @@ export const config: Config = {
   },
   tripo: {
     apiKey: readConfig('tripo.apiKey'),
+  },
+  bfl: {
+    apiKey: readConfig('bfl.apiKey'),
   },
 };
 
