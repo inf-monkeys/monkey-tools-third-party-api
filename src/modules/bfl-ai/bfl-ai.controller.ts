@@ -141,7 +141,7 @@ export class BflAiController {
   })
   @MonkeyToolCredentials([
     {
-      name: 'bfl-ai',
+      name: 'bfl',
       required: config.bfl?.apiKey ? false : true,
     },
   ])
