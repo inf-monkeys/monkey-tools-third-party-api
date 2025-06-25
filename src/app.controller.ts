@@ -84,6 +84,21 @@ export class AppController {
             },
           ],
         },
+        {
+          name: 'bfl',
+          type: CredentialAuthType.AKSK,
+          displayName: 'BFL API',
+          logo: '',
+          // @ts-ignore
+          properties: [
+            {
+              displayName: 'API Key',
+              type: 'string',
+              name: 'api_key',
+              required: true,
+            },
+          ],
+        },
       ],
     };
   }

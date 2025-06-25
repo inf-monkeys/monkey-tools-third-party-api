@@ -43,7 +43,8 @@ export class BflAiController {
       },
       description: {
         'zh-CN': '包含提示词、输入图像等参数的JSON对象',
-        'en-US': 'JSON object containing prompt, input image and other parameters',
+        'en-US':
+          'JSON object containing prompt, input image and other parameters',
       },
       default: {
         prompt: '',
@@ -51,10 +52,10 @@ export class BflAiController {
         seed: null,
         aspect_ratio: null,
         output_format: 'jpeg',
-        safety_tolerance: 2
+        safety_tolerance: 2,
       },
       required: true,
-    }
+    },
   ])
   @MonkeyToolOutput([
     {
@@ -106,14 +107,17 @@ export class BflAiController {
   public async generate(@Body() body: BflAiRequestDto) {
     // 处理输入参数
     let processedBody: any = { ...body };
-    
+
     // 如果存在 input 字段，将其内容提取到顶层
     if (body.input && typeof body.input === 'object') {
       const { input, ...restBody } = body;
       processedBody = { ...restBody, ...input };
-      console.log('处理 input 对象后的请求体：', JSON.stringify(processedBody, null, 2));
+      console.log(
+        '处理 input 对象后的请求体：',
+        JSON.stringify(processedBody, null, 2),
+      );
     }
-    
+
     const result = await this.bflAiService.executeRequestWithPolling(
       () => this.bflAiService.submitRequest(processedBody),
       processedBody.credential,
