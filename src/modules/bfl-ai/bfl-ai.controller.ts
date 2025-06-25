@@ -111,7 +111,7 @@ export class BflAiController {
     if (body.input && typeof body.input === 'object') {
       const { input, ...restBody } = body;
       processedBody = { ...restBody, ...input };
-      this.bflAiService.logger.log('处理 input 对象后的请求体：', JSON.stringify(processedBody, null, 2));
+      console.log('处理 input 对象后的请求体：', JSON.stringify(processedBody, null, 2));
     }
     
     const result = await this.bflAiService.executeRequestWithPolling(
