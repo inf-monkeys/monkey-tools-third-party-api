@@ -3,8 +3,7 @@ import { BflAiRequestDto } from '@/common/schemas/bfl-ai';
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import * as fs from 'fs';
-import * as path from 'path';
+import { processContentUrls } from '@/common/utils/output';
 
 @Injectable()
 export class BflAiService {
@@ -28,7 +27,7 @@ export class BflAiService {
           responseType: 'arraybuffer',
         }),
       );
-      
+
       const buffer = Buffer.from(response.data, 'binary');
       const base64Image = buffer.toString('base64');
       this.logger.log('图片 URL 成功转换为 base64');
@@ -79,14 +78,14 @@ export class BflAiService {
       this.logger.log('使用直接传入的API密钥');
       return credential;
     }
-    
+
     // 如果凭证是对象，尝试解析
     if (credential && typeof credential === 'object') {
       // 如果已经有api_key属性，直接使用
       if (credential.api_key) {
         return credential.api_key;
       }
-      
+
       // 尝试解析encryptedData
       if (credential.encryptedData) {
         try {
@@ -104,7 +103,7 @@ export class BflAiService {
         }
       }
     }
-    
+
     // 如果凭证中没有API密钥或处理失败，则使用配置中的API密钥
     if (!this.apiKey) {
       throw new Error('没有配置 BFL AI 的 API Key，请联系管理员。');
@@ -152,7 +151,7 @@ export class BflAiService {
       };
 
       // 移除所有 null 和 undefined 值的键
-      Object.keys(payload).forEach(key => {
+      Object.keys(payload).forEach((key) => {
         if (payload[key] === null || payload[key] === undefined) {
           delete payload[key];
         }
@@ -169,12 +168,22 @@ export class BflAiService {
       this.logger.log(`请求体: ${JSON.stringify(payload)}`);
 
       // 打印请求体
-      this.logger.log(`请求数据: ${JSON.stringify({
-        ...payload,
-        input_image: payload.input_image ? `${payload.input_image.substring(0, 50)}... [图像数据已省略]` : undefined
-      }, null, 2)}`);
+      this.logger.log(
+        `请求数据: ${JSON.stringify(
+          {
+            ...payload,
+            input_image: payload.input_image
+              ? `${payload.input_image.substring(0, 50)}... [图像数据已省略]`
+              : undefined,
+          },
+          null,
+          2,
+        )}`,
+      );
       this.logger.log(`请求体总长度: ${JSON.stringify(payload).length} 字节`);
-      this.logger.log(`input_image 长度: ${payload.input_image ? payload.input_image.length : 0} 字符`);
+      this.logger.log(
+        `input_image 长度: ${payload.input_image ? payload.input_image.length : 0} 字符`,
+      );
 
       // 发送请求
       const response = await firstValueFrom(
@@ -198,7 +207,9 @@ export class BflAiService {
       return { requestId };
     } catch (error: any) {
       this.logger.error('请求失败:', error.response?.data || error.message);
-      throw new Error(`BFL AI API 请求失败: ${error.response?.data?.message || error.message}`);
+      throw new Error(
+        `BFL AI API 请求失败: ${error.response?.data?.message || error.message}`,
+      );
     }
   }
 
@@ -218,26 +229,28 @@ export class BflAiService {
       const response = await firstValueFrom(
         this.httpService.get(this.apiResultUrl, {
           headers: {
-            'accept': 'application/json',
+            accept: 'application/json',
             'x-key': apiKey,
           },
           params: { id: requestId },
-          validateStatus: (status) => true, // 允许任何状态码，手动处理错误
+          validateStatus: () => true, // 允许任何状态码，手动处理错误
         }),
       );
 
       this.logger.log(`状态查询响应: ${JSON.stringify(response.data)}`);
-      
+
       // 如果返回了 "Task not found"，则返回处理中状态，等待下次轮询
       if (response.data?.status === 'Task not found') {
-        this.logger.log(`任务未找到，可能正在初始化，等待下次轮询: ${requestId}`);
+        this.logger.log(
+          `任务未找到，可能正在初始化，等待下次轮询: ${requestId}`,
+        );
         return {
           requestId,
           status: 'processing',
           message: '任务正在初始化，请稍后再查询',
         };
       }
-      
+
       const status = response.data?.status;
       const result = response.data?.result || {};
 
@@ -262,19 +275,26 @@ export class BflAiService {
       }
     } catch (error: any) {
       // 如果是网络错误，返回处理中状态，等待下次轮询
-      this.logger.error(`查询请求状态失败 (${requestId}):`, error.response?.data || error.message);
-      
+      this.logger.error(
+        `查询请求状态失败 (${requestId}):`,
+        error.response?.data || error.message,
+      );
+
       // 如果是 404 错误，返回处理中状态
       if (error.response?.status === 404) {
-        this.logger.log(`任务未找到，可能正在初始化，等待下次轮询: ${requestId}`);
+        this.logger.log(
+          `任务未找到，可能正在初始化，等待下次轮询: ${requestId}`,
+        );
         return {
           requestId,
           status: 'processing',
           message: '任务正在初始化，请稍后再查询',
         };
       }
-      
-      throw new Error(`查询请求状态失败: ${error.response?.data?.message || error.message}`);
+
+      throw new Error(
+        `查询请求状态失败: ${error.response?.data?.message || error.message}`,
+      );
     }
   }
 
@@ -294,35 +314,46 @@ export class BflAiService {
   ) {
     // 执行请求获取请求ID
     const { requestId } = await requestExecutor();
-    
+
     // 轮询请求状态
     let attempts = 0;
     while (attempts < maxAttempts) {
       // 等待一段时间
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
-      
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+
       // 查询请求状态
-      const requestStatus = await this.queryRequestStatus(requestId, credential);
-      
+      const requestStatus = await this.queryRequestStatus(
+        requestId,
+        credential,
+      );
+
       // 输出状态日志
-      this.logger.log(`轮询状态: ${requestStatus.status}, 尝试次数: ${attempts}/${maxAttempts}`);
-      
+      this.logger.log(
+        `轮询状态: ${requestStatus.status}, 尝试次数: ${attempts}/${maxAttempts}`,
+      );
+
       // 检查请求是否完成
       if (requestStatus.status === 'completed') {
-        this.logger.log(`请求完成，返回结果: ${JSON.stringify(requestStatus.images)}`);
-        return requestStatus;
+        this.logger.log(
+          `请求完成，返回结果: ${JSON.stringify(requestStatus.images)}`,
+        );
+        const output = await processContentUrls(requestStatus);
+
+        return output;
       }
-      
+
       // 检查请求是否失败
       if (requestStatus.status === 'failed') {
-        this.logger.error(`请求执行失败: ${JSON.stringify(requestStatus.error)}`);
+        this.logger.error(
+          `请求执行失败: ${JSON.stringify(requestStatus.error)}`,
+        );
         throw new Error(`请求执行失败: ${JSON.stringify(requestStatus.error)}`);
       }
-      
+
       // 增加尝试次数
       attempts++;
     }
-    
+
     // 超过最大尝试次数
     throw new Error(`请求执行超时，请稍后查询请求状态: ${requestId}`);
   }
