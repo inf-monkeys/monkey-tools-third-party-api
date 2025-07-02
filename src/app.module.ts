@@ -13,7 +13,15 @@ import { BflAiModule } from './modules/bfl-ai/bfl-ai.module';
 import { GeminiAiModule } from './modules/gemini-ai/gemini-ai.module';
 
 @Module({
-  imports: [CommonModule, FalAiModule, LogModule, JimengModule, TripoModule, BflAiModule, GeminiAiModule],
+  imports: [
+    CommonModule,
+    FalAiModule,
+    LogModule,
+    JimengModule,
+    TripoModule,
+    BflAiModule,
+    GeminiAiModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
