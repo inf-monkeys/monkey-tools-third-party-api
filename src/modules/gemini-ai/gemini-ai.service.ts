@@ -147,7 +147,22 @@ export class GeminiAiService {
       }
 
       // 创建 Google GenAI 客户端
-      const ai = new GoogleGenAI({ apiKey });
+      const genAIOptions: any = { apiKey };
+
+      // 添加代理配置
+      if (config.proxy && config.proxy.enabled && config.proxy.url) {
+        this.logger.log(`使用代理: ${config.proxy.url}`);
+        try {
+          const { HttpsProxyAgent } = require('https-proxy-agent');
+          const agent = new HttpsProxyAgent(config.proxy.url);
+          genAIOptions.requestOptions = { agent };
+          this.logger.log('已通过 requestOptions 配置代理');
+        } catch (error) {
+          this.logger.warn(`创建代理 agent 失败: ${error.message}`);
+        }
+      }
+
+      const ai = new GoogleGenAI(genAIOptions);
 
       try {
         this.logger.log('准备请求内容...');
