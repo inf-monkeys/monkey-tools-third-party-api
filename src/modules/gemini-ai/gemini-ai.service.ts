@@ -98,27 +98,33 @@ export class GeminiAiService {
         return credential;
       }
 
-      // 如果凭证是对象且有 encryptedData 属性
-      if (credential && credential.encryptedData) {
-        try {
-          // 尝试解析 JSON 字符串
-          const parsedData = JSON.parse(credential.encryptedData);
-          if (parsedData && parsedData.apiKey) {
-            return parsedData.apiKey;
+      // 如果凭证是对象
+      if (credential && typeof credential === 'object') {
+        // 如果有 apiKey 或 api_key 属性
+        if (credential.apiKey) return credential.apiKey;
+        if (credential.api_key) return credential.api_key;
+
+        // 尝试解析 encryptedData
+        if (credential.encryptedData) {
+          try {
+            const credentialData = JSON.parse(credential.encryptedData);
+            if (credentialData.apiKey) return credentialData.apiKey;
+            if (credentialData.api_key) return credentialData.api_key;
+          } catch (e) {
+            // 如果解析失败，尝试直接使用 encryptedData
+            if (typeof credential.encryptedData === 'string') {
+              return credential.encryptedData;
+            }
           }
-        } catch (e) {
-          // 如果解析失败，可能 encryptedData 本身就是 API 密钥
-          return credential.encryptedData;
         }
       }
 
-      // 如果凭证对象有 apiKey 属性
-      if (credential && credential.apiKey) {
-        return credential.apiKey;
+      // 使用配置中的 API 密钥
+      if (config.gemini && config.gemini.apiKey) {
+        return config.gemini.apiKey;
       }
 
-      // 由于移除了 ConfigService，这里直接抛出错误
-      throw new Error('未找到 Gemini API 密钥，请提供 credential 参数');
+      throw new Error('未找到 Gemini API 密钥');
     } catch (error) {
       this.logger.error(`获取 API 密钥失败: ${error.message}`);
       throw new Error(`获取 API 密钥失败: ${error.message}`);
