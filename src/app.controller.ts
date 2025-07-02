@@ -99,6 +99,26 @@ export class AppController {
             },
           ],
         },
+        {
+          name: 'gemini',
+          type: CredentialAuthType.AKSK,
+          displayName: 'Google Gemini',
+          // @ts-ignore
+          iconUrl: 'https://www.gstatic.com/lamda/images/favicon_v1_70c80ffdf27202fd2e84f.png',
+          properties: [
+            {
+              displayName: '从 [Google AI Studio](https://makersuite.google.com/app/apikey) 获取你的 API Key。',
+              type: 'notice',
+              name: 'docs',
+            },
+            {
+              displayName: 'API Key',
+              type: 'string',
+              name: 'api_key',
+              required: true,
+            },
+          ],
+        },
       ],
     };
   }

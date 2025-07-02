@@ -45,6 +45,10 @@ export interface TripoConfig {
   apiKey?: string;
 }
 
+export interface GeminiConfig {
+  apiKey?: string;
+}
+
 export interface Config {
   server: ServerConfig;
   s3?: S3Config;
@@ -54,6 +58,7 @@ export interface Config {
   jimeng: JimengConfig;
   tripo: TripoConfig;
   bfl: BflConfig;
+  gemini: GeminiConfig;
 }
 
 const port = readConfig('server.port', 3000);
@@ -91,6 +96,9 @@ export const config: Config = {
   },
   bfl: {
     apiKey: readConfig('bfl.apiKey'),
+  },
+  gemini: {
+    apiKey: readConfig('gemini.apiKey'),
   },
 };
 
