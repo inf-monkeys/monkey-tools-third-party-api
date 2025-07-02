@@ -6,4 +6,4 @@ import { JimengService } from '@/modules/jimeng/jimeng.service';
   controllers: [JimengController],
   providers: [JimengService],
 })
-export class JimengModule { } 
+export class JimengModule {}

@@ -14,11 +14,14 @@ export class GeminiAiService {
   private readonly s3Helpers: S3Helpers | null = null;
   private readonly s3Enabled: boolean = false;
 
-  constructor(
-    private readonly httpService: HttpService,
-  ) {
+  constructor(private readonly httpService: HttpService) {
     // 只有在 S3 配置存在时才初始化 S3Helpers
-    if (config.s3 && config.s3.bucket && config.s3.accessKeyId && config.s3.secretAccessKey) {
+    if (
+      config.s3 &&
+      config.s3.bucket &&
+      config.s3.accessKeyId &&
+      config.s3.secretAccessKey
+    ) {
       try {
         this.s3Helpers = new S3Helpers();
         this.s3Enabled = true;
@@ -58,7 +61,7 @@ export class GeminiAiService {
           responseType: 'arraybuffer',
         }),
       );
-      
+
       const buffer = Buffer.from(response.data, 'binary');
       const base64Image = buffer.toString('base64');
       this.logger.log('图片 URL 成功转换为 base64');
@@ -130,7 +133,7 @@ export class GeminiAiService {
   async submitRequest(params: any): Promise<any> {
     try {
       const apiKey = this.getApiKey(params.credential);
-      
+
       // 处理输入图像（如果有）
       let processedInputImage = null;
       if (params.input_image) {
@@ -139,18 +142,18 @@ export class GeminiAiService {
 
       // 创建 Google GenAI 客户端
       const ai = new GoogleGenAI({ apiKey });
-      
+
       try {
         this.logger.log('准备请求内容...');
-        
+
         // 准备请求内容
         let contents = [];
-        
+
         // 添加文本提示
         if (params.prompt) {
           contents.push({ text: params.prompt });
         }
-        
+
         // 添加输入图像（如果有）
         if (processedInputImage) {
           contents.push({
@@ -160,10 +163,10 @@ export class GeminiAiService {
             },
           });
         }
-        
+
         this.logger.log(`请求内容准备完成，包含 ${contents.length} 个部分`);
         this.logger.log('发送请求到 Google Gemini API...');
-        
+
         // 使用与官方示例相同的调用方式
         const response = await ai.models.generateContent({
           model: this.model,
@@ -172,12 +175,12 @@ export class GeminiAiService {
             responseModalities: [Modality.TEXT, Modality.IMAGE],
           },
         });
-        
+
         this.logger.log('收到 Google Gemini API 响应');
-        
+
         const images = [];
         const textParts = [];
-        
+
         // 处理响应
         if (response.candidates && response.candidates.length > 0) {
           for (const part of response.candidates[0].content.parts) {
@@ -187,34 +190,38 @@ export class GeminiAiService {
               textParts.push(part.text);
             } else if (part.inlineData) {
               this.logger.log('收到图像响应');
-              
+
               // 检查 S3 是否已启用
               if (this.s3Enabled && this.s3Helpers) {
                 try {
                   // 上传图像到 S3
                   const imageUrl = await this.uploadBase64ImageToS3(
                     part.inlineData.data,
-                    part.inlineData.mimeType || 'image/jpeg'
+                    part.inlineData.mimeType || 'image/jpeg',
                   );
-                  
+
                   images.push({ url: imageUrl });
                 } catch (uploadError) {
-                  this.logger.error(`上传图像到 S3 失败: ${uploadError.message}`);
+                  this.logger.error(
+                    `上传图像到 S3 失败: ${uploadError.message}`,
+                  );
                   // 直接抛出错误，不返回 base64 数据
                   throw new Error(`上传图像到 S3 失败: ${uploadError.message}`);
                 }
               } else {
                 // S3 未启用，抛出错误
                 this.logger.error('S3 未启用，无法上传图像');
-                throw new Error('S3 未启用或配置不正确，请配置 S3 存储后再尝试');
+                throw new Error(
+                  'S3 未启用或配置不正确，请配置 S3 存储后再尝试',
+                );
               }
             }
           }
         }
-        
+
         // 生成请求ID
         const requestId = Date.now().toString();
-        
+
         // 返回请求结果
         return {
           requestId: requestId,
@@ -242,25 +249,27 @@ export class GeminiAiService {
     // 如果结果中有 images 属性且是数组，则提取图片 URL
     if (result && result.images && Array.isArray(result.images)) {
       // 提取所有图片 URL
-      const imageUrls = result.images.map(img => {
-        // 如果图片是对象并且有 url 属性
-        if (typeof img === 'object' && img.url) {
-          return img.url;
-        }
-        // 如果图片直接是 URL 字符串
-        if (typeof img === 'string') {
-          return img;
-        }
-        return null;
-      }).filter(url => url !== null);
-      
+      const imageUrls = result.images
+        .map((img) => {
+          // 如果图片是对象并且有 url 属性
+          if (typeof img === 'object' && img.url) {
+            return img.url;
+          }
+          // 如果图片直接是 URL 字符串
+          if (typeof img === 'string') {
+            return img;
+          }
+          return null;
+        })
+        .filter((url) => url !== null);
+
       // 替换原始结果中的 images
       return {
         ...result,
-        images: imageUrls
+        images: imageUrls,
       };
     }
-    
+
     return result;
   }
 
@@ -285,28 +294,38 @@ export class GeminiAiService {
    * @param mimeType 图像的 MIME 类型
    * @returns 上传后的图像 URL
    */
-  async uploadBase64ImageToS3(base64Data: string, mimeType: string = 'image/jpeg'): Promise<string> {
+  async uploadBase64ImageToS3(
+    base64Data: string,
+    mimeType: string = 'image/jpeg',
+  ): Promise<string> {
     // 检查 S3 是否已启用
     if (!this.s3Enabled || !this.s3Helpers) {
       throw new Error('S3 未启用或配置不正确');
     }
-    
+
     try {
       // 1. 清理 base64 数据（如果包含 data URL 前缀）
-      const base64WithoutPrefix = base64Data.replace(/^data:image\/\w+;base64,/, '');
-      
+      const base64WithoutPrefix = base64Data.replace(
+        /^data:image\/\w+;base64,/,
+        '',
+      );
+
       // 2. 转换为 Buffer
       const buffer = Buffer.from(base64WithoutPrefix, 'base64');
-      
+
       // 3. 生成唯一文件名
       const extension = mimeType.split('/')[1] || 'jpeg';
       const fileName = `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 10)}.${extension}`;
-      
+
       // 4. 使用 S3Helpers 上传文件
-      const imageUrl = await this.s3Helpers.uploadFile(buffer, fileName, mimeType);
-      
+      const imageUrl = await this.s3Helpers.uploadFile(
+        buffer,
+        fileName,
+        mimeType,
+      );
+
       this.logger.log(`图像已上传到 S3: ${imageUrl}`);
-      
+
       return imageUrl;
     } catch (error) {
       this.logger.error(`上传图像到 S3 失败: ${error.message}`);

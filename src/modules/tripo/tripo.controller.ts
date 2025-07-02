@@ -20,7 +20,7 @@ import { TripoService } from './tripo.service';
 @ApiTags('Tripo 3D')
 export class TripoController {
   private readonly logger = new Logger(TripoController.name);
-  constructor(private readonly tripoService: TripoService) { }
+  constructor(private readonly tripoService: TripoService) {}
 
   @Post('generate')
   @ApiOperation({

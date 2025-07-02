@@ -129,7 +129,6 @@ async function uploadToS3(url: string): Promise<string> {
  * 处理内容中的URL,将文件上传至S3并替换URL
  */
 export async function processContentUrls(content: any): Promise<any> {
-
   if (!s3Client || !config.s3) {
     return content;
   }
