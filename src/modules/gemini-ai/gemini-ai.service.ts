@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { GoogleGenAI, Modality } from '@google/genai';
+import { GoogleGenAI, GoogleGenAIOptions, Modality } from '@google/genai';
+import { setGlobalDispatcher, ProxyAgent } from 'undici';
 import { S3Helpers } from '../../common/s3';
 import { config } from '../../common/config';
 
@@ -147,20 +148,16 @@ export class GeminiAiService {
       }
 
       // 创建 Google GenAI 客户端
-      const genAIOptions: any = { apiKey };
 
-      // 添加代理配置
       if (config.proxy && config.proxy.enabled && config.proxy.url) {
-        this.logger.log(`使用代理: ${config.proxy.url}`);
-        try {
-          const { HttpsProxyAgent } = require('https-proxy-agent');
-          const agent = new HttpsProxyAgent(config.proxy.url);
-          genAIOptions.requestOptions = { agent };
-          this.logger.log('已通过 requestOptions 配置代理');
-        } catch (error) {
-          this.logger.warn(`创建代理 agent 失败: ${error.message}`);
-        }
+        const dispatcher = new ProxyAgent({
+          uri: new URL(config.proxy.url).toString(),
+        });
+
+        setGlobalDispatcher(dispatcher);
       }
+
+      const genAIOptions: GoogleGenAIOptions = { apiKey };
 
       const ai = new GoogleGenAI(genAIOptions);
 
@@ -168,7 +165,7 @@ export class GeminiAiService {
         this.logger.log('准备请求内容...');
 
         // 准备请求内容
-        let contents = [];
+        const contents: any[] = [];
 
         // 添加文本提示
         if (params.prompt) {
