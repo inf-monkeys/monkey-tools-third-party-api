@@ -9,19 +9,13 @@ export const ByteArkImageParamsSchema = z.object({
     required_error: '提示词是必填的',
     invalid_type_error: '提示词必须是字符串',
   }),
-  // 模型参数必填
-  model: z.string({
-    required_error: '模型参数是必填的',
-    invalid_type_error: '模型参数必须是字符串',
-  }),
+  // 模型参数可选，根据是否提供image参数自动选择合适的默认模型
+  model: z.string().optional(),
   // 图片URL改为可选，当不提供时为文生图模式，提供时为图生图模式
   image: z.string().optional(),
   response_format: z.string().optional().default('url'),
-  // 尺寸参数必填
-  size: z.string({
-    required_error: '图像尺寸参数是必填的',
-    invalid_type_error: '图像尺寸参数必须是字符串',
-  }),
+  // 尺寸参数可选，不同模式有不同的默认值
+  size: z.string().optional(),
   seed: z.number().optional(),
   guidance_scale: z.number().optional(),
   watermark: z.boolean().optional().default(true),
