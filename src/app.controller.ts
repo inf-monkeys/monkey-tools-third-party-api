@@ -121,6 +121,27 @@ export class AppController {
             },
           ],
         },
+        {
+          name: 'byte-ark',
+          type: CredentialAuthType.AKSK,
+          displayName: '字节 ARK AI',
+          // @ts-ignore
+          iconUrl: 'https://ark.bytedance.com/favicon.ico',
+          properties: [
+            {
+              displayName:
+                '从 [字节 ARK AI](https://ark.bytedance.com/) 获取你的 API Key。',
+              type: 'notice',
+              name: 'docs',
+            },
+            {
+              displayName: 'API Key',
+              type: 'string',
+              name: 'api_key',
+              required: true,
+            },
+          ],
+        },
       ],
     };
   }

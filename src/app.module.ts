@@ -11,6 +11,7 @@ import { JimengModule } from './modules/jimeng/jimeng.module';
 import { TripoModule } from './modules/tripo/tripo.module';
 import { BflAiModule } from './modules/bfl-ai/bfl-ai.module';
 import { GeminiAiModule } from './modules/gemini-ai/gemini-ai.module';
+import { ByteArkModule } from './modules/byte-ark/byte-ark.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { GeminiAiModule } from './modules/gemini-ai/gemini-ai.module';
     TripoModule,
     BflAiModule,
     GeminiAiModule,
+    ByteArkModule,
   ],
   controllers: [AppController],
   providers: [

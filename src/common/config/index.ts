@@ -49,6 +49,10 @@ export interface GeminiConfig {
   apiKey?: string;
 }
 
+export interface ByteArkConfig {
+  apiKey?: string;
+}
+
 export interface Config {
   server: ServerConfig;
   s3?: S3Config;
@@ -59,6 +63,7 @@ export interface Config {
   tripo: TripoConfig;
   bfl: BflConfig;
   gemini: GeminiConfig;
+  byteArk: ByteArkConfig;
 }
 
 const port = readConfig('server.port', 3000);
@@ -99,6 +104,9 @@ export const config: Config = {
   },
   gemini: {
     apiKey: readConfig('gemini.apiKey'),
+  },
+  byteArk: {
+    apiKey: readConfig('byteArk.apiKey'),
   },
 };
 

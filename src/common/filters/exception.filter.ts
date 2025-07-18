@@ -17,7 +17,12 @@ export class ExceptionsFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
-    logger.error('Request Exception: ', exception);
+    // 只记录简单的错误信息
+    if (exception instanceof AxiosError) {
+      logger.error(`Request Exception: ${exception.message}, Status: ${exception.response?.status || 'unknown'}`);
+    } else {
+      logger.error(`Request Exception: ${(exception as Error).message}`);
+    }
     const message =
       exception instanceof AxiosError
         ? exception.response?.data
