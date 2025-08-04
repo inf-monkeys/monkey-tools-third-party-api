@@ -59,6 +59,9 @@ export class OpenAiController {
         model: 'gpt-4o',
         max_tokens: 1000,
         temperature: 0.7,
+        size: '1024x1024',
+        quality: 'standard',
+        style: 'vivid',
       },
       required: true,
     },
@@ -84,8 +87,20 @@ export class OpenAiController {
       },
       type: 'string',
       description: {
-        'zh-CN': 'AI 模型返回的文本内容',
-        'en-US': 'Text content returned by AI model',
+        'zh-CN': 'AI 模型返回的文本内容（文本生成时）',
+        'en-US': 'Text content returned by AI model (for text generation)',
+      },
+    },
+    {
+      name: 'images',
+      displayName: {
+        'zh-CN': '图像结果',
+        'en-US': 'Image Results',
+      },
+      type: 'json',
+      description: {
+        'zh-CN': '生成的图像列表（图像生成时）',
+        'en-US': 'Generated images list (for image generation)',
       },
     },
     {
@@ -149,4 +164,4 @@ export class OpenAiController {
       ...result,
     };
   }
-} 
+}

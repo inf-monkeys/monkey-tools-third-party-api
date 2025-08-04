@@ -16,7 +16,7 @@ export const OpenAiParamsSchema = z
       .optional()
       .describe('输入图像（URL或Base64）'),
     model: z
-      .enum(['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-vision-preview', 'gpt-3.5-turbo'])
+      .enum(['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-vision-preview', 'gpt-3.5-turbo', 'gpt-image-1'])
       .default('gpt-4o')
       .describe('使用的模型'),
     max_tokens: z
@@ -39,6 +39,18 @@ export const OpenAiParamsSchema = z
       .string()
       .optional()
       .describe('系统提示词'),
+    size: z
+      .enum(['256x256', '512x512', '1024x1024', '1792x1024', '1024x1792'])
+      .default('1024x1024')
+      .describe('生成图像的尺寸'),
+    quality: z
+      .enum(['standard', 'hd'])
+      .default('standard')
+      .describe('图像质量'),
+    style: z
+      .enum(['vivid', 'natural'])
+      .default('vivid')
+      .describe('图像风格'),
   })
   .passthrough();
 

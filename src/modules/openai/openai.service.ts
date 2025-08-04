@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { S3Helpers } from '../../common/s3';
 import { config } from '../../common/config';
+import { processContentUrls } from '../../common/utils/output';
 
 @Injectable()
 export class OpenAiService {
@@ -138,6 +139,11 @@ export class OpenAiService {
     try {
       const apiKey = this.getApiKey(params.credential);
 
+      // 检查是否是图像生成模型
+      if (params.model === 'gpt-image-1') {
+        return await this.generateImage(params, apiKey);
+      }
+
       // 处理输入图像（如果有）
       let processedInputImage = null;
       if (params.input_image) {
@@ -221,13 +227,18 @@ export class OpenAiService {
       // 生成请求ID
       const requestId = result.id || Date.now().toString();
 
+      // 处理返回内容中的 URL
+      const processedContent = await processContentUrls({
+        text: content,
+        model: result.model,
+        usage: result.usage,
+      });
+
       // 返回请求结果
       return {
         requestId: requestId,
         status: 'completed',
-        text: content,
-        model: result.model,
-        usage: result.usage,
+        ...processedContent,
       };
     } catch (error) {
       this.logger.error(`OpenAI API 调用失败: ${error.message}`);
@@ -242,6 +253,84 @@ export class OpenAiService {
    */
   formatResults(result: any): any {
     return result;
+  }
+
+  /**
+   * 生成图像
+   * @param params 请求参数
+   * @param apiKey API密钥
+   * @returns 图像生成结果
+   */
+  async generateImage(params: any, apiKey: string): Promise<any> {
+    try {
+      this.logger.log('开始图像生成请求');
+
+      // 构建图像生成请求体
+      const requestBody = {
+        model: 'dall-e-3', // 使用 DALL-E 3 作为 GPT Image 1 的实现
+        prompt: params.prompt,
+        n: 1,
+        size: params.size || '1024x1024',
+        quality: params.quality || 'standard',
+        style: params.style || 'vivid',
+      };
+
+      this.logger.log(`发送图像生成请求，参数: ${JSON.stringify(requestBody)}`);
+
+      // 发送图像生成请求
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.apiBaseUrl}/images/generations`,
+          requestBody,
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            proxy:
+              config.proxy?.enabled && config.proxy?.url
+                ? {
+                    host: new URL(config.proxy.url).hostname,
+                    port: parseInt(new URL(config.proxy.url).port),
+                    protocol: new URL(config.proxy.url).protocol,
+                  }
+                : undefined,
+          },
+        ),
+      );
+
+      this.logger.log('收到图像生成响应');
+
+      const result = response.data;
+      const images = result.data || [];
+
+      // 生成请求ID
+      const requestId = Date.now().toString();
+
+      // 处理图像 URL，上传到 S3
+      const processedImages = await processContentUrls(
+        images.map((img: any) => ({
+          url: img.url,
+          revised_prompt: img.revised_prompt,
+        })),
+      );
+
+      // 返回图像生成结果
+      return {
+        requestId: requestId,
+        status: 'completed',
+        images: processedImages,
+        model: 'gpt-image-1',
+        usage: {
+          prompt_tokens: params.prompt.length,
+          completion_tokens: 0,
+          total_tokens: params.prompt.length,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`图像生成失败: ${error.message}`);
+      throw new Error(`图像生成失败: ${error.message}`);
+    }
   }
 
   /**

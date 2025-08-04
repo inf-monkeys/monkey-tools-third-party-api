@@ -1,8 +1,0 @@
-server:
-  port: 3005
-
-fal:
-  apiKey: apiKey
-
-openai:
-  apiKey: your_openai_api_key_here
