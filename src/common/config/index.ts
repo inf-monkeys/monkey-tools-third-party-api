@@ -53,6 +53,10 @@ export interface ByteArkConfig {
   apiKey?: string;
 }
 
+export interface OpenAiConfig {
+  apiKey?: string;
+}
+
 export interface Config {
   server: ServerConfig;
   s3?: S3Config;
@@ -64,6 +68,7 @@ export interface Config {
   bfl: BflConfig;
   gemini: GeminiConfig;
   byteArk: ByteArkConfig;
+  openai: OpenAiConfig;
 }
 
 const port = readConfig('server.port', 3000);
@@ -107,6 +112,9 @@ export const config: Config = {
   },
   byteArk: {
     apiKey: readConfig('byteArk.apiKey'),
+  },
+  openai: {
+    apiKey: readConfig('openai.apiKey'),
   },
 };
 

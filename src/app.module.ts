@@ -12,6 +12,7 @@ import { TripoModule } from './modules/tripo/tripo.module';
 import { BflAiModule } from './modules/bfl-ai/bfl-ai.module';
 import { GeminiAiModule } from './modules/gemini-ai/gemini-ai.module';
 import { ByteArkModule } from './modules/byte-ark/byte-ark.module';
+import { OpenAiModule } from './modules/openai/openai.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ByteArkModule } from './modules/byte-ark/byte-ark.module';
     BflAiModule,
     GeminiAiModule,
     ByteArkModule,
+    OpenAiModule,
   ],
   controllers: [AppController],
   providers: [

@@ -142,6 +142,27 @@ export class AppController {
             },
           ],
         },
+        {
+          name: 'openai',
+          type: CredentialAuthType.AKSK,
+          displayName: 'OpenAI',
+          // @ts-ignore
+          iconUrl: 'https://openai.com/favicon.ico',
+          properties: [
+            {
+              displayName:
+                '从 [OpenAI Platform](https://platform.openai.com/api-keys) 获取你的 API Key。',
+              type: 'notice',
+              name: 'docs',
+            },
+            {
+              displayName: 'API Key',
+              type: 'string',
+              name: 'api_key',
+              required: true,
+            },
+          ],
+        },
       ],
     };
   }
