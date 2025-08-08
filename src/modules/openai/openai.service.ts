@@ -73,10 +73,45 @@ export class OpenAiService {
    * @returns API密钥
    */
   getApiKey(credential: any): string {
-    if (!credential || !credential.apiKey) {
-      throw new Error('API密钥未提供');
+    try {
+      // 如果凭证是字符串，直接返回
+      if (credential && typeof credential === 'string') {
+        this.logger.log('使用直接传入的API密钥');
+        return credential;
+      }
+
+      // 如果凭证是对象
+      if (credential && typeof credential === 'object') {
+        // 如果有 apiKey 或 api_key 属性
+        if (credential.apiKey) return credential.apiKey;
+        if (credential.api_key) return credential.api_key;
+
+        // 尝试解析 encryptedData
+        if (credential.encryptedData) {
+          try {
+            const credentialData = JSON.parse(credential.encryptedData);
+            if (credentialData.apiKey) return credentialData.apiKey;
+            if (credentialData.api_key) return credentialData.api_key;
+          } catch (e) {
+            // 如果解析失败，尝试直接使用 encryptedData
+            if (typeof credential.encryptedData === 'string') {
+              this.logger.log('尝试直接使用encryptedData作为API密钥');
+              return credential.encryptedData;
+            }
+          }
+        }
+      }
+
+      // 使用配置中的 API 密钥
+      if (config.openai && config.openai.apiKey) {
+        return config.openai.apiKey;
+      }
+
+      throw new Error('未找到 OpenAI API 密钥');
+    } catch (error) {
+      this.logger.error(`获取 API 密钥失败: ${error.message}`);
+      throw new Error(`获取 API 密钥失败: ${error.message}`);
     }
-    return credential.apiKey;
   }
 
   /**
