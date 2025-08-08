@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { S3Helpers } from '../../common/s3';
 import { config } from '../../common/config';
 import { processContentUrls } from '../../common/utils/output';
+import FormData from 'form-data';
 
 @Injectable()
 export class OpenAiService {
@@ -262,6 +263,112 @@ export class OpenAiService {
    * @returns 图像生成结果
    */
   async generateImage(params: any, apiKey: string): Promise<any> {
+    try {
+      // 检查是否有输入图像，如果有则使用图片编辑功能
+      if (params.input_image) {
+        this.logger.log('检测到输入图像，使用图片编辑功能');
+        return await this.editImage(params, apiKey);
+      } else {
+        this.logger.log('没有输入图像，使用图片生成功能');
+        return await this.generateNewImage(params, apiKey);
+      }
+    } catch (error) {
+      this.logger.error(`图像处理失败: ${error.message}`);
+      throw new Error(`图像处理失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 编辑图像（基于输入图像）
+   * @param params 请求参数
+   * @param apiKey API密钥
+   * @returns 图像编辑结果
+   */
+  async editImage(params: any, apiKey: string): Promise<any> {
+    try {
+      this.logger.log('开始图像编辑请求');
+
+      // 处理输入图像
+      const imageBase64 = await this.processInputImage(params.input_image);
+      const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+      // 创建 FormData
+      const formData = new FormData();
+      formData.append('image', imageBuffer, {
+        filename: 'image.png',
+        contentType: 'image/png',
+      });
+      formData.append('prompt', params.prompt);
+      formData.append('model', 'dall-e-2'); // 使用 DALL-E 2 支持编辑
+      formData.append('n', '1');
+      formData.append('size', params.size || '1024x1024');
+      formData.append('response_format', 'url');
+
+      this.logger.log('发送图像编辑请求');
+
+      // 发送图像编辑请求
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.apiBaseUrl}/images/edits`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              ...formData.getHeaders(),
+            },
+            proxy:
+              config.proxy?.enabled && config.proxy?.url
+                ? {
+                    host: new URL(config.proxy.url).hostname,
+                    port: parseInt(new URL(config.proxy.url).port),
+                    protocol: new URL(config.proxy.url).protocol,
+                  }
+                : undefined,
+          },
+        ),
+      );
+
+      this.logger.log('收到图像编辑响应');
+
+      const result = response.data;
+      const images = result.data || [];
+
+      // 生成请求ID
+      const requestId = Date.now().toString();
+
+      // 处理图像 URL，上传到 S3
+      const processedImages = await processContentUrls(
+        images.map((img: any) => ({
+          url: img.url,
+          revised_prompt: params.prompt, // 编辑模式下使用原始prompt
+        })),
+      );
+
+      // 返回图像编辑结果
+      return {
+        requestId: requestId,
+        status: 'completed',
+        images: processedImages,
+        model: 'gpt-image-1',
+        usage: {
+          prompt_tokens: params.prompt.length,
+          completion_tokens: 0,
+          total_tokens: params.prompt.length,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`图像编辑失败: ${error.message}`);
+      throw new Error(`图像编辑失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 生成新图像（基于文字描述）
+   * @param params 请求参数
+   * @param apiKey API密钥
+   * @returns 图像生成结果
+   */
+  async generateNewImage(params: any, apiKey: string): Promise<any> {
     try {
       this.logger.log('开始图像生成请求');
 
