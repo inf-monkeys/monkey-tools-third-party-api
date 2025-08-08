@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { S3Helpers } from '../../common/s3';
 import { config } from '../../common/config';
 import { processContentUrls } from '../../common/utils/output';
+import FormData from 'form-data';
 
 @Injectable()
 export class OpenAiService {
@@ -265,28 +266,54 @@ export class OpenAiService {
     try {
       this.logger.log('开始图像生成请求');
 
-      // 构建图像生成请求体
-      const requestBody = {
-        model: 'dall-e-3', // 使用 DALL-E 3 作为 GPT Image 1 的实现
-        prompt: params.prompt,
-        n: 1,
-        size: params.size || '1024x1024',
-        quality: params.quality || 'standard',
-        style: params.style || 'vivid',
-      };
+      const size = params.size || '1024x1024';
+      const quality = params.quality || 'standard';
 
-      this.logger.log(`发送图像生成请求，参数: ${JSON.stringify(requestBody)}`);
+      let response;
+      if (params.input_image) {
+        // 图像编辑：当提供了 input_image 时，走 /images/edits 并上传图片
+        const inputBase64 = await this.processInputImage(params.input_image);
+        const imageBuffer = Buffer.from(
+          inputBase64.replace(/^data:[^;]+;base64,/, ''),
+          'base64',
+        );
 
-      // 发送图像生成请求
-      const response = await firstValueFrom(
-        this.httpService.post(
-          `${this.apiBaseUrl}/images/generations`,
-          requestBody,
-          {
+        const form = new FormData();
+        form.append('model', 'gpt-image-1');
+        form.append('prompt', params.prompt);
+        form.append('size', size);
+        form.append('quality', quality);
+        form.append('response_format', 'url');
+        form.append('image', imageBuffer, {
+          filename: 'input.png',
+          contentType: 'image/png',
+        });
+
+        // 可选遮罩
+        if (params.mask) {
+          try {
+            const maskBase64 = await this.processInputImage(params.mask);
+            const maskBuffer = Buffer.from(
+              maskBase64.replace(/^data:[^;]+;base64,/, ''),
+              'base64',
+            );
+            form.append('mask', maskBuffer, {
+              filename: 'mask.png',
+              contentType: 'image/png',
+            });
+          } catch (e) {
+            this.logger.warn(`处理 mask 失败，将忽略 mask: ${e.message}`);
+          }
+        }
+
+        this.logger.log('发送图像编辑请求 /images/edits');
+        response = await firstValueFrom(
+          this.httpService.post(`${this.apiBaseUrl}/images/edits`, form, {
             headers: {
+              ...form.getHeaders(),
               Authorization: `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
             },
+            maxBodyLength: Infinity,
             proxy:
               config.proxy?.enabled && config.proxy?.url
                 ? {
@@ -295,9 +322,44 @@ export class OpenAiService {
                     protocol: new URL(config.proxy.url).protocol,
                   }
                 : undefined,
-          },
-        ),
-      );
+          }),
+        );
+      } else {
+        // 纯生成：无 input_image 时走 /images/generations JSON
+        const requestBody = {
+          model: 'gpt-image-1',
+          prompt: params.prompt,
+          n: 1,
+          size,
+          quality,
+          response_format: 'url',
+        };
+        this.logger.log(
+          `发送图像生成请求 /images/generations，参数: ${JSON.stringify(
+            requestBody,
+          )}`,
+        );
+        response = await firstValueFrom(
+          this.httpService.post(
+            `${this.apiBaseUrl}/images/generations`,
+            requestBody,
+            {
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              proxy:
+                config.proxy?.enabled && config.proxy?.url
+                  ? {
+                      host: new URL(config.proxy.url).hostname,
+                      port: parseInt(new URL(config.proxy.url).port),
+                      protocol: new URL(config.proxy.url).protocol,
+                    }
+                  : undefined,
+            },
+          ),
+        );
+      }
 
       this.logger.log('收到图像生成响应');
 
