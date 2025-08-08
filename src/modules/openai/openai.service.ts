@@ -265,52 +265,17 @@ export class OpenAiService {
     try {
       this.logger.log('开始图像生成请求');
 
-      // 检查是否有输入图像和遮罩图像，决定使用生成、编辑还是遮罩模式
-      let requestBody: any;
-      let endpoint: string;
+      // gpt-image-1 模型只支持纯文本到图像的生成，不支持图像编辑
+      // 因此我们忽略 input_image 和 mask_image 参数
+      const requestBody = {
+        model: 'gpt-image-1',
+        prompt: params.prompt,
+        n: params.num_images || 1,
+        size: params.size || '1024x1024',
+        quality: params.quality || 'standard',
+      };
 
-      if (params.mask_image && params.input_image) {
-        // 遮罩模式 - 使用 images/edit 端点，包含 mask 参数
-        const processedImage = await this.processInputImage(params.input_image);
-        const processedMask = await this.processInputImage(params.mask_image);
-
-        requestBody = {
-          model: 'gpt-image-1',
-          image: processedImage,
-          mask: processedMask,
-          prompt: params.prompt,
-          n: params.num_images || 1,
-          size: params.size || '1024x1024',
-          quality: params.quality || 'standard',
-        };
-
-        endpoint = `${this.apiBaseUrl}/images/edit`;
-      } else if (params.input_image) {
-        // 编辑模式 - 使用 images/edit 端点
-        const processedImage = await this.processInputImage(params.input_image);
-
-        requestBody = {
-          model: 'gpt-image-1',
-          image: processedImage,
-          prompt: params.prompt,
-          n: params.num_images || 1,
-          size: params.size || '1024x1024',
-          quality: params.quality || 'standard',
-        };
-
-        endpoint = `${this.apiBaseUrl}/images/edit`;
-      } else {
-        // 生成模式 - 使用 images/generations 端点
-        requestBody = {
-          model: 'gpt-image-1',
-          prompt: params.prompt,
-          n: params.num_images || 1,
-          size: params.size || '1024x1024',
-          quality: params.quality || 'standard',
-        };
-
-        endpoint = `${this.apiBaseUrl}/images/generations`;
-      }
+      const endpoint = `${this.apiBaseUrl}/images/generations`;
 
       this.logger.log(`发送图像生成请求，参数: ${JSON.stringify(requestBody)}`);
 
