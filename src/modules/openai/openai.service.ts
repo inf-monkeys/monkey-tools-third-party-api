@@ -306,18 +306,35 @@ export class OpenAiService {
     );
 
     this.logger.log('收到图像生成响应');
+    this.logger.log(`响应数据: ${JSON.stringify(response.data)}`);
 
     const result = response.data;
     const images = result.data || [];
 
     const requestId = Date.now().toString();
 
-    const processedImages = await processContentUrls(
-      images.map((img: any) => ({
-        url: img.url,
-        revised_prompt: img.revised_prompt,
-      })),
-    );
+    // 处理图片数据
+    const processedImages = [];
+    for (const img of images) {
+      if (img && (img.url || img.b64_json)) {
+        const processedImg = {
+          url: img.url || null,
+          revised_prompt: img.revised_prompt || null,
+        };
+
+        // 如果有 URL，尝试上传到 S3
+        if (processedImg.url) {
+          try {
+            const processedUrl = await processContentUrls(processedImg.url);
+            processedImg.url = processedUrl;
+          } catch (error) {
+            this.logger.error(`处理图片URL失败: ${error.message}`);
+          }
+        }
+
+        processedImages.push(processedImg);
+      }
+    }
 
     return {
       requestId: requestId,
@@ -387,18 +404,35 @@ export class OpenAiService {
     );
 
     this.logger.log('收到图像编辑响应');
+    this.logger.log(`响应数据: ${JSON.stringify(response.data)}`);
 
     const result = response.data;
     const images = result.data || [];
 
     const requestId = Date.now().toString();
 
-    const processedImages = await processContentUrls(
-      images.map((img: any) => ({
-        url: img.url,
-        revised_prompt: img.revised_prompt,
-      })),
-    );
+    // 处理图片数据
+    const processedImages = [];
+    for (const img of images) {
+      if (img && (img.url || img.b64_json)) {
+        const processedImg = {
+          url: img.url || null,
+          revised_prompt: img.revised_prompt || null,
+        };
+
+        // 如果有 URL，尝试上传到 S3
+        if (processedImg.url) {
+          try {
+            const processedUrl = await processContentUrls(processedImg.url);
+            processedImg.url = processedUrl;
+          } catch (error) {
+            this.logger.error(`处理图片URL失败: ${error.message}`);
+          }
+        }
+
+        processedImages.push(processedImg);
+      }
+    }
 
     return {
       requestId: requestId,
