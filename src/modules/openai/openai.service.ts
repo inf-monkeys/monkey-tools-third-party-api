@@ -265,38 +265,71 @@ export class OpenAiService {
     try {
       this.logger.log('开始图像生成请求');
 
-      // 构建图像生成请求体
-      const requestBody = {
-        model: 'dall-e-3', // 使用 DALL-E 3 作为 GPT Image 1 的实现
-        prompt: params.prompt,
-        n: 1,
-        size: params.size || '1024x1024',
-        quality: params.quality || 'standard',
-        style: params.style || 'vivid',
-      };
+      // 检查是否有输入图像和遮罩图像，决定使用生成、编辑还是遮罩模式
+      let requestBody: any;
+      let endpoint: string;
+
+      if (params.mask_image && params.input_image) {
+        // 遮罩模式 - 使用 images/edit 端点，包含 mask 参数
+        const processedImage = await this.processInputImage(params.input_image);
+        const processedMask = await this.processInputImage(params.mask_image);
+
+        requestBody = {
+          model: 'gpt-image-1',
+          image: processedImage,
+          mask: processedMask,
+          prompt: params.prompt,
+          n: params.num_images || 1,
+          size: params.size || '1024x1024',
+          quality: params.quality || 'standard',
+        };
+
+        endpoint = `${this.apiBaseUrl}/images/edit`;
+      } else if (params.input_image) {
+        // 编辑模式 - 使用 images/edit 端点
+        const processedImage = await this.processInputImage(params.input_image);
+
+        requestBody = {
+          model: 'gpt-image-1',
+          image: processedImage,
+          prompt: params.prompt,
+          n: params.num_images || 1,
+          size: params.size || '1024x1024',
+          quality: params.quality || 'standard',
+        };
+
+        endpoint = `${this.apiBaseUrl}/images/edit`;
+      } else {
+        // 生成模式 - 使用 images/generations 端点
+        requestBody = {
+          model: 'gpt-image-1',
+          prompt: params.prompt,
+          n: params.num_images || 1,
+          size: params.size || '1024x1024',
+          quality: params.quality || 'standard',
+        };
+
+        endpoint = `${this.apiBaseUrl}/images/generations`;
+      }
 
       this.logger.log(`发送图像生成请求，参数: ${JSON.stringify(requestBody)}`);
 
       // 发送图像生成请求
       const response = await firstValueFrom(
-        this.httpService.post(
-          `${this.apiBaseUrl}/images/generations`,
-          requestBody,
-          {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            proxy:
-              config.proxy?.enabled && config.proxy?.url
-                ? {
-                    host: new URL(config.proxy.url).hostname,
-                    port: parseInt(new URL(config.proxy.url).port),
-                    protocol: new URL(config.proxy.url).protocol,
-                  }
-                : undefined,
+        this.httpService.post(endpoint, requestBody, {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
           },
-        ),
+          proxy:
+            config.proxy?.enabled && config.proxy?.url
+              ? {
+                  host: new URL(config.proxy.url).hostname,
+                  port: parseInt(new URL(config.proxy.url).port),
+                  protocol: new URL(config.proxy.url).protocol,
+                }
+              : undefined,
+        }),
       );
 
       this.logger.log('收到图像生成响应');

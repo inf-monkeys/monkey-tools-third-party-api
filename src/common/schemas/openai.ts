@@ -15,8 +15,21 @@ export const OpenAiParamsSchema = z
       })
       .optional()
       .describe('输入图像（URL或Base64）'),
+    mask_image: z
+      .string({
+        invalid_type_error: '遮罩图像必须是URL或Base64编码的字符串',
+      })
+      .optional()
+      .describe('遮罩图像（URL或Base64），用于图像编辑'),
     model: z
-      .enum(['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-vision-preview', 'gpt-3.5-turbo', 'gpt-image-1'])
+      .enum([
+        'gpt-4o',
+        'gpt-4o-mini',
+        'gpt-4-turbo',
+        'gpt-4-vision-preview',
+        'gpt-3.5-turbo',
+        'gpt-image-1',
+      ])
       .default('gpt-4o')
       .describe('使用的模型'),
     max_tokens: z
@@ -35,10 +48,7 @@ export const OpenAiParamsSchema = z
       .enum(['low', 'high', 'auto'])
       .default('auto')
       .describe('图像分析详细程度'),
-    system_prompt: z
-      .string()
-      .optional()
-      .describe('系统提示词'),
+    system_prompt: z.string().optional().describe('系统提示词'),
     size: z
       .enum(['256x256', '512x512', '1024x1024', '1792x1024', '1024x1792'])
       .default('1024x1024')
@@ -47,10 +57,8 @@ export const OpenAiParamsSchema = z
       .enum(['standard', 'hd'])
       .default('standard')
       .describe('图像质量'),
-    style: z
-      .enum(['vivid', 'natural'])
-      .default('vivid')
-      .describe('图像风格'),
+    style: z.enum(['vivid', 'natural']).default('vivid').describe('图像风格'),
+    num_images: z.number().min(1).max(10).default(1).describe('生成图像的数量'),
   })
   .passthrough();
 
