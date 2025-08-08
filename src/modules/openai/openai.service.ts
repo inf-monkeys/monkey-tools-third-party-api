@@ -31,7 +31,15 @@ export class OpenAiService {
     if (this.isUrl(input)) {
       return await this.imageUrlToBase64(input);
     } else {
-      // 假设是Base64编码
+      // 处理 base64 数据
+      if (input.startsWith('data:image/')) {
+        // 如果是 data URL 格式，提取 base64 部分
+        const base64Match = input.match(/data:image\/[^;]+;base64,(.+)/);
+        if (base64Match) {
+          return base64Match[1];
+        }
+      }
+      // 假设已经是 base64 编码
       return input;
     }
   }
@@ -272,7 +280,6 @@ export class OpenAiService {
       prompt: params.prompt,
       n: params.n || 1,
       size: params.size || '1024x1024',
-      quality: params.quality || 'standard',
     };
 
     this.logger.log(`发送图像生成请求，参数: ${JSON.stringify(requestBody)}`);
@@ -347,12 +354,11 @@ export class OpenAiService {
       contentType: 'image/png',
     });
 
-    // 添加其他参数
+    // 添加其他参数 - 只添加 gpt-image-1 支持的参数
     form.append('model', 'gpt-image-1');
     form.append('prompt', params.prompt);
     form.append('n', params.n || 1);
     form.append('size', params.size || '1024x1024');
-    form.append('quality', params.quality || 'standard');
 
     this.logger.log(
       `发送图像编辑请求，参数: ${JSON.stringify({
@@ -360,7 +366,6 @@ export class OpenAiService {
         prompt: params.prompt,
         n: params.n || 1,
         size: params.size || '1024x1024',
-        quality: params.quality || 'standard',
       })}`,
     );
 
