@@ -293,6 +293,9 @@ export class OpenAiService {
             Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
+          timeout: 120000, // 2分钟超时
+          maxContentLength: 50 * 1024 * 1024, // 50MB
+          maxBodyLength: 50 * 1024 * 1024, // 50MB
           proxy:
             config.proxy?.enabled && config.proxy?.url
               ? {
@@ -311,15 +314,23 @@ export class OpenAiService {
     const result = response.data;
     const images = result.data || [];
 
+    this.logger.log(`原始图片数据: ${JSON.stringify(images)}`);
+
     const requestId = Date.now().toString();
 
     // 处理图片数据
     const processedImages = [];
     for (const img of images) {
-      if (img && (img.url || img.b64_json)) {
+      this.logger.log(`处理图片对象: ${JSON.stringify(img)}`);
+      
+      // 检查各种可能的字段名
+      const imageUrl = img.url || img.image_url || img.link || null;
+      const revisedPrompt = img.revised_prompt || img.prompt || img.description || null;
+      
+      if (imageUrl || revisedPrompt) {
         const processedImg = {
-          url: img.url || null,
-          revised_prompt: img.revised_prompt || null,
+          url: imageUrl,
+          revised_prompt: revisedPrompt,
         };
 
         // 如果有 URL，尝试上传到 S3
@@ -333,7 +344,30 @@ export class OpenAiService {
         }
 
         processedImages.push(processedImg);
+        this.logger.log(`添加处理后的图片: ${JSON.stringify(processedImg)}`);
+      } else {
+        this.logger.warn(`跳过无效的图片对象: ${JSON.stringify(img)}`);
       }
+    }
+
+    // 如果没有处理到任何图片，尝试其他可能的字段
+    if (processedImages.length === 0 && result.url) {
+      this.logger.log(`使用根级别的 URL: ${result.url}`);
+      const processedImg = {
+        url: result.url,
+        revised_prompt: result.revised_prompt || result.prompt || null,
+      };
+      
+      if (processedImg.url) {
+        try {
+          const processedUrl = await processContentUrls(processedImg.url);
+          processedImg.url = processedUrl;
+        } catch (error) {
+          this.logger.error(`处理图片URL失败: ${error.message}`);
+        }
+      }
+      
+      processedImages.push(processedImg);
     }
 
     return {
@@ -356,71 +390,109 @@ export class OpenAiService {
    * @returns 图像编辑结果
    */
   private async editImage(params: any, apiKey: string): Promise<any> {
-    // 处理输入图片
-    const processedInputImage = await this.processInputImage(
-      params.input_image,
-    );
+    try {
+      // 处理输入图片
+      const processedInputImage = await this.processInputImage(
+        params.input_image,
+      );
 
-    // 构建 multipart/form-data
-    const form = new FormData();
+      this.logger.log(`图片处理完成，base64长度: ${processedInputImage.length}`);
 
-    // 添加图片文件
-    const imageBuffer = Buffer.from(processedInputImage, 'base64');
-    form.append('image', imageBuffer, {
-      filename: 'input.png',
-      contentType: 'image/png',
-    });
+      // 构建 multipart/form-data
+      const form = new FormData();
 
-    // 添加其他参数 - 只添加 gpt-image-1 支持的参数
-    form.append('model', 'gpt-image-1');
-    form.append('prompt', params.prompt);
-    form.append('n', params.n || 1);
-    form.append('size', params.size || '1024x1024');
+      // 添加图片文件
+      const imageBuffer = Buffer.from(processedInputImage, 'base64');
+      form.append('image', imageBuffer, {
+        filename: 'input.png',
+        contentType: 'image/png',
+      });
 
-    this.logger.log(
-      `发送图像编辑请求，参数: ${JSON.stringify({
-        model: 'gpt-image-1',
-        prompt: params.prompt,
-        n: params.n || 1,
-        size: params.size || '1024x1024',
-      })}`,
-    );
+      // 添加其他参数 - 只添加 gpt-image-1 支持的参数
+      form.append('model', 'gpt-image-1');
+      form.append('prompt', params.prompt);
+      form.append('n', params.n || 1);
+      form.append('size', params.size || '1024x1024');
 
-    const response = await firstValueFrom(
-      this.httpService.post(`${this.apiBaseUrl}/images/edits`, form, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          ...form.getHeaders(),
-        },
-        proxy:
-          config.proxy?.enabled && config.proxy?.url
-            ? {
-                host: new URL(config.proxy.url).hostname,
-                port: parseInt(new URL(config.proxy.url).port),
-                protocol: new URL(config.proxy.url).protocol,
-              }
-            : undefined,
-      }),
-    );
+      this.logger.log(
+        `发送图像编辑请求，参数: ${JSON.stringify({
+          model: 'gpt-image-1',
+          prompt: params.prompt,
+          n: params.n || 1,
+          size: params.size || '1024x1024',
+        })}`,
+      );
 
-    this.logger.log('收到图像编辑响应');
-    this.logger.log(`响应数据: ${JSON.stringify(response.data)}`);
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.apiBaseUrl}/images/edits`, form, {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            ...form.getHeaders(),
+          },
+          timeout: 120000, // 2分钟超时
+          maxContentLength: 50 * 1024 * 1024, // 50MB
+          maxBodyLength: 50 * 1024 * 1024, // 50MB
+          proxy:
+            config.proxy?.enabled && config.proxy?.url
+              ? {
+                  host: new URL(config.proxy.url).hostname,
+                  port: parseInt(new URL(config.proxy.url).port),
+                  protocol: new URL(config.proxy.url).protocol,
+                }
+              : undefined,
+        }),
+      );
 
-    const result = response.data;
-    const images = result.data || [];
+      this.logger.log('收到图像编辑响应');
+      this.logger.log(`响应数据: ${JSON.stringify(response.data)}`);
 
-    const requestId = Date.now().toString();
+      const result = response.data;
+      const images = result.data || [];
 
-    // 处理图片数据
-    const processedImages = [];
-    for (const img of images) {
-      if (img && (img.url || img.b64_json)) {
+      this.logger.log(`原始图片数据: ${JSON.stringify(images)}`);
+
+      const requestId = Date.now().toString();
+
+      // 处理图片数据
+      const processedImages = [];
+      for (const img of images) {
+        this.logger.log(`处理图片对象: ${JSON.stringify(img)}`);
+        
+        // 检查各种可能的字段名
+        const imageUrl = img.url || img.image_url || img.link || null;
+        const revisedPrompt = img.revised_prompt || img.prompt || img.description || null;
+        
+        if (imageUrl || revisedPrompt) {
+          const processedImg = {
+            url: imageUrl,
+            revised_prompt: revisedPrompt,
+          };
+
+          // 如果有 URL，尝试上传到 S3
+          if (processedImg.url) {
+            try {
+              const processedUrl = await processContentUrls(processedImg.url);
+              processedImg.url = processedUrl;
+            } catch (error) {
+              this.logger.error(`处理图片URL失败: ${error.message}`);
+            }
+          }
+
+          processedImages.push(processedImg);
+          this.logger.log(`添加处理后的图片: ${JSON.stringify(processedImg)}`);
+        } else {
+          this.logger.warn(`跳过无效的图片对象: ${JSON.stringify(img)}`);
+        }
+      }
+
+      // 如果没有处理到任何图片，尝试其他可能的字段
+      if (processedImages.length === 0 && result.url) {
+        this.logger.log(`使用根级别的 URL: ${result.url}`);
         const processedImg = {
-          url: img.url || null,
-          revised_prompt: img.revised_prompt || null,
+          url: result.url,
+          revised_prompt: result.revised_prompt || result.prompt || null,
         };
-
-        // 如果有 URL，尝试上传到 S3
+        
         if (processedImg.url) {
           try {
             const processedUrl = await processContentUrls(processedImg.url);
@@ -429,22 +501,28 @@ export class OpenAiService {
             this.logger.error(`处理图片URL失败: ${error.message}`);
           }
         }
-
+        
         processedImages.push(processedImg);
       }
-    }
 
-    return {
-      requestId: requestId,
-      status: 'completed',
-      images: processedImages,
-      model: 'gpt-image-1',
-      usage: {
-        prompt_tokens: params.prompt.length,
-        completion_tokens: 0,
-        total_tokens: params.prompt.length,
-      },
-    };
+      return {
+        requestId: requestId,
+        status: 'completed',
+        images: processedImages,
+        model: 'gpt-image-1',
+        usage: {
+          prompt_tokens: params.prompt.length,
+          completion_tokens: 0,
+          total_tokens: params.prompt.length,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`图像编辑失败: ${error.message}`);
+      if (error.code === 'ECONNRESET' || error.message.includes('socket hang up')) {
+        throw new Error(`网络连接失败，请检查网络连接或稍后重试: ${error.message}`);
+      }
+      throw new Error(`图像编辑失败: ${error.message}`);
+    }
   }
 
   /**
