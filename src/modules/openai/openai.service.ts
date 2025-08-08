@@ -280,81 +280,108 @@ export class OpenAiService {
 
   /**
    * 编辑图像（基于输入图像）
+   * 实际上是图像分析 + 重新生成的组合流程
    * @param params 请求参数
    * @param apiKey API密钥
    * @returns 图像编辑结果
    */
   async editImage(params: any, apiKey: string): Promise<any> {
     try {
-      this.logger.log('开始图像编辑请求');
+      this.logger.log('开始基于输入图像的图像处理');
+
+      // 第一步：使用Vision模型分析输入图像
+      const imageAnalysis = await this.analyzeImageWithVision(params, apiKey);
+      
+      // 第二步：结合原始prompt和图像分析结果，生成新的详细描述
+      const enhancedPrompt = `${params.prompt} Based on this ${imageAnalysis}`;
+      
+      // 第三步：使用增强的prompt生成图像
+      const generationParams = {
+        ...params,
+        prompt: enhancedPrompt,
+      };
+      delete generationParams.input_image; // 移除输入图像，避免递归
+      
+      return await this.generateNewImage(generationParams, apiKey);
+      
+    } catch (error) {
+      this.logger.error(`基于输入图像的处理失败: ${error.message}`);
+      throw new Error(`基于输入图像的处理失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 使用Vision模型分析图像
+   * @param params 请求参数
+   * @param apiKey API密钥
+   * @returns 图像分析结果
+   */
+  async analyzeImageWithVision(params: any, apiKey: string): Promise<string> {
+    try {
+      this.logger.log('使用Vision模型分析输入图像');
 
       // 处理输入图像
-      const imageBase64 = await this.processInputImage(params.input_image);
-      const imageBuffer = Buffer.from(imageBase64, 'base64');
+      const processedInputImage = await this.processInputImage(params.input_image);
 
-      // 创建 FormData
-      const formData = new FormData();
-      formData.append('image', imageBuffer, {
-        filename: 'image.png',
-        contentType: 'image/png',
-      });
-      formData.append('prompt', params.prompt);
-      formData.append('model', 'dall-e-2'); // 使用 DALL-E 2 支持编辑
-      formData.append('n', '1');
-      formData.append('size', params.size || '1024x1024');
-      formData.append('response_format', 'url');
+      // 构建Vision分析请求
+      const messages = [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Analyze this garment image and describe its key features, style, colors, and structural details that would be important for creating a technical sketch.',
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/jpeg;base64,${processedInputImage}`,
+                detail: 'high',
+              },
+            },
+          ],
+        },
+      ];
 
-      this.logger.log('发送图像编辑请求');
+      const requestBody = {
+        model: 'gpt-4o', // 使用支持Vision的模型
+        messages: messages,
+        max_tokens: 300,
+        temperature: 0.3, // 较低温度确保准确描述
+      };
 
-      // 发送图像编辑请求
+      // 发送Vision分析请求
       const response = await firstValueFrom(
-        this.httpService.post(`${this.apiBaseUrl}/images/edits`, formData, {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            ...formData.getHeaders(),
+        this.httpService.post(
+          `${this.apiBaseUrl}/chat/completions`,
+          requestBody,
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            proxy:
+              config.proxy?.enabled && config.proxy?.url
+                ? {
+                    host: new URL(config.proxy.url).hostname,
+                    port: parseInt(new URL(config.proxy.url).port),
+                    protocol: new URL(config.proxy.url).protocol,
+                  }
+                : undefined,
           },
-          proxy:
-            config.proxy?.enabled && config.proxy?.url
-              ? {
-                  host: new URL(config.proxy.url).hostname,
-                  port: parseInt(new URL(config.proxy.url).port),
-                  protocol: new URL(config.proxy.url).protocol,
-                }
-              : undefined,
-        }),
+        ),
       );
-
-      this.logger.log('收到图像编辑响应');
 
       const result = response.data;
-      const images = result.data || [];
-
-      // 生成请求ID
-      const requestId = Date.now().toString();
-
-      // 处理图像 URL，上传到 S3
-      const processedImages = await processContentUrls(
-        images.map((img: any) => ({
-          url: img.url,
-          revised_prompt: params.prompt, // 编辑模式下使用原始prompt
-        })),
-      );
-
-      // 返回图像编辑结果
-      return {
-        requestId: requestId,
-        status: 'completed',
-        images: processedImages,
-        model: 'gpt-image-1',
-        usage: {
-          prompt_tokens: params.prompt.length,
-          completion_tokens: 0,
-          total_tokens: params.prompt.length,
-        },
-      };
+      const analysis = result.choices?.[0]?.message?.content || '';
+      
+      this.logger.log(`图像分析完成: ${analysis.substring(0, 100)}...`);
+      return analysis;
+      
     } catch (error) {
-      this.logger.error(`图像编辑失败: ${error.message}`);
-      throw new Error(`图像编辑失败: ${error.message}`);
+      this.logger.error(`Vision图像分析失败: ${error.message}`);
+      // 如果Vision分析失败，返回一个通用描述
+      return 'garment with typical clothing features';
     }
   }
 
