@@ -65,17 +65,20 @@ export class ByteArkService {
 
       // 直接使用用户提供的inputs对象作为请求体
       const payload = { ...inputData.inputs };
-      
+
       this.logger.log('Sending request to ByteArk API');
-      
+
       // 打印完整的请求信息
       console.log('ByteArk API URL:', `${this.baseUrl}/images/generations`);
       console.log('ByteArk API Request Headers:', {
-        'Authorization': `Bearer ${apiKey.substring(0, 10)}...`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${apiKey.substring(0, 10)}...`,
+        'Content-Type': 'application/json',
       });
-      console.log('ByteArk API Request Payload:', JSON.stringify(payload, null, 2));
-      
+      console.log(
+        'ByteArk API Request Payload:',
+        JSON.stringify(payload, null, 2),
+      );
+
       // 发送API请求
       const response = await axios.post(
         `${this.baseUrl}/images/generations`,
@@ -92,14 +95,17 @@ export class ByteArkService {
                 protocol: new URL(config.proxy.url).protocol.slice(0, -1),
               }
             : undefined,
-        }
+        },
       );
-      
+
       // 打印响应信息
       console.log('ByteArk API Response Status:', response.status);
       console.log('ByteArk API Response Headers:', response.headers);
-      console.log('ByteArk API Response Data:', JSON.stringify(response.data, null, 2));
-      
+      console.log(
+        'ByteArk API Response Data:',
+        JSON.stringify(response.data, null, 2),
+      );
+
       const output = await processContentUrls(response.data);
 
       return {

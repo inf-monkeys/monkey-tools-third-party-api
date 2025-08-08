@@ -308,24 +308,20 @@ export class OpenAiService {
 
       // 发送图像编辑请求
       const response = await firstValueFrom(
-        this.httpService.post(
-          `${this.apiBaseUrl}/images/edits`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              ...formData.getHeaders(),
-            },
-            proxy:
-              config.proxy?.enabled && config.proxy?.url
-                ? {
-                    host: new URL(config.proxy.url).hostname,
-                    port: parseInt(new URL(config.proxy.url).port),
-                    protocol: new URL(config.proxy.url).protocol,
-                  }
-                : undefined,
+        this.httpService.post(`${this.apiBaseUrl}/images/edits`, formData, {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            ...formData.getHeaders(),
           },
-        ),
+          proxy:
+            config.proxy?.enabled && config.proxy?.url
+              ? {
+                  host: new URL(config.proxy.url).hostname,
+                  port: parseInt(new URL(config.proxy.url).port),
+                  protocol: new URL(config.proxy.url).protocol,
+                }
+              : undefined,
+        }),
       );
 
       this.logger.log('收到图像编辑响应');

@@ -43,8 +43,10 @@ export class ByteArkController {
       },
       default: {},
       description: {
-        'zh-CN': '包含生成图像所需的所有参数，如prompt（必填）、image（可选）、model、size、seed等',
-        'en-US': 'Contains all parameters needed for image generation, such as prompt (required), image (optional), model, size, seed, etc.',
+        'zh-CN':
+          '包含生成图像所需的所有参数，如prompt（必填）、image（可选）、model、size、seed等',
+        'en-US':
+          'Contains all parameters needed for image generation, such as prompt (required), image (optional), model, size, seed, etc.',
       },
     },
   ])
