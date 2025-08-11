@@ -19,7 +19,9 @@ export class ExceptionsFilter implements ExceptionFilter {
         : HttpStatus.INTERNAL_SERVER_ERROR;
     // 只记录简单的错误信息
     if (exception instanceof AxiosError) {
-      logger.error(`Request Exception: ${exception.message}, Status: ${exception.response?.status || 'unknown'}`);
+      logger.error(
+        `Request Exception: ${exception.message}, Status: ${exception.response?.status || 'unknown'}`,
+      );
     } else {
       logger.error(`Request Exception: ${(exception as Error).message}`);
     }

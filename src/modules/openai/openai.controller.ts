@@ -49,7 +49,8 @@ export class OpenAiController {
         'en-US': 'Input Parameters',
       },
       description: {
-        'zh-CN': '包含提示词、输入图像等参数的JSON对象。如果有input_image字段则进行图像分析，否则进行文本生成',
+        'zh-CN':
+          '包含提示词、输入图像等参数的JSON对象。如果有input_image字段则进行图像分析，否则进行文本生成',
         'en-US':
           'JSON object containing prompt, input image and other parameters. If input_image is provided, performs image analysis, otherwise performs text generation',
       },

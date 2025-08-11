@@ -16,7 +16,14 @@ export const OpenAiParamsSchema = z
       .optional()
       .describe('输入图像（URL或Base64）'),
     model: z
-      .enum(['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-vision-preview', 'gpt-3.5-turbo', 'gpt-image-1'])
+      .enum([
+        'gpt-4o',
+        'gpt-4o-mini',
+        'gpt-4-turbo',
+        'gpt-4-vision-preview',
+        'gpt-3.5-turbo',
+        'gpt-image-1',
+      ])
       .default('gpt-4o')
       .describe('使用的模型'),
     max_tokens: z
@@ -35,10 +42,7 @@ export const OpenAiParamsSchema = z
       .enum(['low', 'high', 'auto'])
       .default('auto')
       .describe('图像分析详细程度'),
-    system_prompt: z
-      .string()
-      .optional()
-      .describe('系统提示词'),
+    system_prompt: z.string().optional().describe('系统提示词'),
     size: z
       .enum(['256x256', '512x512', '1024x1024', '1792x1024', '1024x1792'])
       .default('1024x1024')
@@ -47,10 +51,13 @@ export const OpenAiParamsSchema = z
       .enum(['standard', 'hd'])
       .default('standard')
       .describe('图像质量'),
-    style: z
-      .enum(['vivid', 'natural'])
-      .default('vivid')
-      .describe('图像风格'),
+    style: z.enum(['vivid', 'natural']).default('natural').describe('图像风格'),
+    n: z.number().min(1).max(4).default(1).describe('生成图片数量'),
+    mask_image: z.string().optional().describe('蒙版图像（用于图像编辑）'),
+    operation: z
+      .enum(['generate', 'edit'])
+      .default('generate')
+      .describe('操作类型：生成新图或编辑现有图'),
   })
   .passthrough();
 
@@ -84,4 +91,4 @@ export const OpenAiRequestSchema = z
   .passthrough();
 
 // 创建 DTO 类
-export class OpenAiRequestDto extends createZodDto(OpenAiRequestSchema) {} 
+export class OpenAiRequestDto extends createZodDto(OpenAiRequestSchema) {}

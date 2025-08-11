@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { S3Helpers } from '../../common/s3';
 import { config } from '../../common/config';
 import { processContentUrls } from '../../common/utils/output';
+import FormData from 'form-data';
 
 @Injectable()
 export class OpenAiService {
@@ -256,23 +257,30 @@ export class OpenAiService {
   }
 
   /**
-   * 生成图像
+   * 生成或编辑图像
    * @param params 请求参数
    * @param apiKey API密钥
-   * @returns 图像生成结果
+   * @returns 图像生成/编辑结果
    */
   async generateImage(params: any, apiKey: string): Promise<any> {
     try {
-      this.logger.log('开始图像生成请求');
+      this.logger.log(
+        `开始图像${params.operation === 'edit' ? '编辑' : '生成'}请求`,
+      );
 
-      // 构建图像生成请求体
+      // 检查是否为图像编辑模式
+      if (params.operation === 'edit' && params.input_image) {
+        return await this.editImage(params, apiKey);
+      }
+
+      // 构建图像生成请求体 - 使用真正的 gpt-image-1 模型
       const requestBody = {
-        model: 'dall-e-3', // 使用 DALL-E 3 作为 GPT Image 1 的实现
+        model: 'gpt-image-1',
         prompt: params.prompt,
-        n: 1,
+        n: params.n || 1,
         size: params.size || '1024x1024',
-        quality: params.quality || 'standard',
-        style: params.style || 'vivid',
+        quality: params.quality || 'hd',
+        style: params.style || 'natural',
       };
 
       this.logger.log(`发送图像生成请求，参数: ${JSON.stringify(requestBody)}`);
@@ -330,6 +338,87 @@ export class OpenAiService {
     } catch (error) {
       this.logger.error(`图像生成失败: ${error.message}`);
       throw new Error(`图像生成失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 编辑图像
+   * @param params 请求参数
+   * @param apiKey API密钥
+   * @returns 图像编辑结果
+   */
+  async editImage(params: any, apiKey: string): Promise<any> {
+    try {
+      this.logger.log('开始图像编辑请求');
+
+      // 处理输入图像
+      const imageData = await this.processInputImage(params.input_image);
+
+      // 构建FormData用于图像编辑
+      const formData = new FormData();
+
+      // 将base64转为buffer
+      const imageBuffer = Buffer.from(imageData, 'base64');
+      formData.append('image', imageBuffer, 'image.png');
+      formData.append('model', 'gpt-image-1');
+      formData.append('prompt', params.prompt);
+      formData.append('n', params.n || 1);
+      formData.append('size', params.size || '1024x1024');
+      formData.append('quality', params.quality || 'hd');
+
+      // 如果有蒙版图像，也添加进去
+      if (params.mask_image) {
+        const maskData = await this.processInputImage(params.mask_image);
+        const maskBuffer = Buffer.from(maskData, 'base64');
+        formData.append('mask', maskBuffer, 'mask.png');
+      }
+
+      this.logger.log('发送图像编辑请求');
+
+      // 发送图像编辑请求
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.apiBaseUrl}/images/edits`, formData, {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            ...formData.getHeaders(),
+          },
+          proxy:
+            config.proxy?.enabled && config.proxy?.url
+              ? {
+                  host: new URL(config.proxy.url).hostname,
+                  port: parseInt(new URL(config.proxy.url).port) || 80,
+                }
+              : false,
+          timeout: 120000,
+        }),
+      );
+
+      const imageEditResult = response.data;
+      this.logger.log(
+        `图像编辑完成，生成了 ${imageEditResult.data?.length || 0} 张图像`,
+      );
+
+      // 处理生成的图像URL并上传到S3 - 使用与图像生成相同的处理方式
+      const processedImages = await processContentUrls(
+        imageEditResult.data?.map((img: any) => ({
+          url: img.url,
+          revised_prompt: img.revised_prompt || params.prompt,
+        })) || [],
+      );
+
+      // 生成请求ID
+      const requestId = Date.now().toString();
+
+      return {
+        requestId: requestId,
+        status: 'completed',
+        data: processedImages,
+        created: imageEditResult.created,
+        usage: imageEditResult.usage,
+      };
+    } catch (error) {
+      this.logger.error(`图像编辑失败: ${error.message}`);
+      throw new Error(`图像编辑失败: ${error.message}`);
     }
   }
 
