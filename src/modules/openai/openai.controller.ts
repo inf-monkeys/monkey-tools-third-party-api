@@ -61,7 +61,7 @@ export class OpenAiController {
         max_tokens: 1000,
         temperature: 0.7,
         size: '1024x1024',
-        quality: 'standard',
+        quality: 'high',
         style: 'vivid',
       },
       required: true,

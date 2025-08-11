@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { S3Helpers } from '../../common/s3';
 import { config } from '../../common/config';
 import { processContentUrls } from '../../common/utils/output';
+import { saveBase64AsTemp } from '../../common/utils/temp-file';
 import FormData from 'form-data';
 
 @Injectable()
@@ -279,8 +280,8 @@ export class OpenAiService {
         prompt: params.prompt,
         n: params.n || 1,
         size: params.size || '1024x1024',
-        quality: params.quality || 'hd',
-        style: params.style || 'natural',
+        quality: params.quality || 'high', // gpt-image-1支持: low, medium, high, auto
+        // gpt-image-1 不支持 style 参数，已移除
       };
 
       this.logger.log(`发送图像生成请求，参数: ${JSON.stringify(requestBody)}`);
@@ -308,20 +309,63 @@ export class OpenAiService {
       );
 
       this.logger.log('收到图像生成响应');
+      this.logger.log(`完整响应数据: ${JSON.stringify(response.data, null, 2)}`);
 
       const result = response.data;
       const images = result.data || [];
+      
+      this.logger.log(`图像数组长度: ${images.length}`);
+      this.logger.log(`图像数据: ${JSON.stringify(images, null, 2)}`);
 
       // 生成请求ID
       const requestId = Date.now().toString();
 
-      // 处理图像 URL，上传到 S3
-      const processedImages = await processContentUrls(
-        images.map((img: any) => ({
-          url: img.url,
-          revised_prompt: img.revised_prompt,
-        })),
-      );
+      // 处理图像数据
+      let processedImages;
+      if (images.length > 0 && images[0].url) {
+        // 如果有URL，通过processContentUrls处理
+        processedImages = await processContentUrls(
+          images.map((img: any) => ({
+            url: img.url,
+            revised_prompt: img.revised_prompt,
+          })),
+        );
+      } else if (images.length > 0 && images[0].b64_json) {
+        // 如果有base64数据，转换为URL
+        processedImages = await Promise.all(
+          images.map(async (img: any) => {
+            try {
+              let url: string;
+              
+              if (this.s3Enabled) {
+                // 优先使用S3存储
+                const buffer = Buffer.from(img.b64_json, 'base64');
+                const fileKey = `images/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+                url = await this.s3Helpers.uploadFile(buffer, fileKey, 'image/png');
+                this.logger.log(`成功上传图像到S3: ${url}`);
+              } else {
+                // 使用临时文件服务
+                url = saveBase64AsTemp(img.b64_json, 'png');
+                this.logger.log(`成功保存图像为临时文件: ${url}`);
+              }
+              
+              return {
+                url: url,
+                revised_prompt: img.revised_prompt,
+              };
+            } catch (error) {
+              this.logger.error(`转换图像URL失败: ${error.message}`);
+              // 如果转换失败，仍然返回base64数据
+              return img;
+            }
+          }),
+        );
+      } else {
+        // 直接返回原始数据（可能包含base64）
+        processedImages = images;
+      }
+      
+      this.logger.log(`处理后的图像: ${JSON.stringify(processedImages, null, 2)}`);
 
       // 返回图像生成结果
       return {
@@ -336,10 +380,18 @@ export class OpenAiService {
         },
       };
     } catch (error) {
-      this.logger.error(`图像生成失败: ${error.message}`);
-      throw new Error(`图像生成失败: ${error.message}`);
+      this.logger.error(`gpt-image-1 图像生成失败: ${error.message}`);
+      this.logger.error(`HTTP状态码: ${error.response?.status}`);
+      this.logger.error(`错误详情: ${JSON.stringify(error.response?.data || {})}`);
+      this.logger.error(`请求头: ${JSON.stringify(error.config?.headers || {})}`);
+      this.logger.error(`请求体: ${JSON.stringify(error.config?.data || {})}`);
+      
+      // 返回更详细的错误信息给前端
+      const errorDetail = error.response?.data?.error || {};
+      throw new Error(`gpt-image-1 图像生成失败: ${errorDetail.message || error.message} (状态码: ${error.response?.status})`);
     }
   }
+
 
   /**
    * 编辑图像
@@ -364,7 +416,7 @@ export class OpenAiService {
       formData.append('prompt', params.prompt);
       formData.append('n', params.n || 1);
       formData.append('size', params.size || '1024x1024');
-      formData.append('quality', params.quality || 'hd');
+      formData.append('quality', params.quality || 'high');
 
       // 如果有蒙版图像，也添加进去
       if (params.mask_image) {
