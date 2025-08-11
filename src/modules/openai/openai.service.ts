@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { S3Helpers } from '../../common/s3';
 import { config } from '../../common/config';
 import { processContentUrls } from '../../common/utils/output';
-import { saveBase64AsTemp } from '../../common/utils/temp-file';
+
 import FormData from 'form-data';
 
 @Injectable()
@@ -60,7 +60,6 @@ export class OpenAiService {
       const response = await firstValueFrom(
         this.httpService.get(url, {
           responseType: 'arraybuffer',
-          proxy: false, // 禁用代理避免网络连接问题
         }),
       );
 
@@ -332,35 +331,32 @@ export class OpenAiService {
           })),
         );
       } else if (images.length > 0 && images[0].b64_json) {
-        // 如果有base64数据，转换为URL
-        processedImages = await Promise.all(
-          images.map(async (img: any) => {
-            try {
-              let url: string;
-              
-              if (this.s3Enabled) {
-                // 优先使用S3存储
+        // 如果有base64数据，转换为URL（仅使用S3）
+        if (this.s3Enabled) {
+          processedImages = await Promise.all(
+            images.map(async (img: any) => {
+              try {
                 const buffer = Buffer.from(img.b64_json, 'base64');
                 const fileKey = `images/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
-                url = await this.s3Helpers.uploadFile(buffer, fileKey, 'image/png');
+                const url = await this.s3Helpers.uploadFile(buffer, fileKey, 'image/png');
                 this.logger.log(`成功上传图像到S3: ${url}`);
-              } else {
-                // 使用临时文件服务
-                url = saveBase64AsTemp(img.b64_json, 'png');
-                this.logger.log(`成功保存图像为临时文件: ${url}`);
+                
+                return {
+                  url: url,
+                  revised_prompt: img.revised_prompt,
+                };
+              } catch (error) {
+                this.logger.error(`转换图像URL失败: ${error.message}`);
+                // 如果转换失败，仍然返回base64数据
+                return img;
               }
-              
-              return {
-                url: url,
-                revised_prompt: img.revised_prompt,
-              };
-            } catch (error) {
-              this.logger.error(`转换图像URL失败: ${error.message}`);
-              // 如果转换失败，仍然返回base64数据
-              return img;
-            }
-          }),
-        );
+            }),
+          );
+        } else {
+          // 如果没有S3配置，直接返回base64数据
+          this.logger.warn('S3未配置，直接返回base64图像数据');
+          processedImages = images;
+        }
       } else {
         // 直接返回原始数据（可能包含base64）
         processedImages = images;

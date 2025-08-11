@@ -7,8 +7,7 @@ import { AppModule } from './app.module';
 import { ExceptionsFilter } from './common/filters/exception.filter';
 import { logger } from './common/logger';
 import { patchNestjsSwagger } from '@anatine/zod-nestjs';
-import { join } from 'path';
-import { ServeStaticModule } from '@nestjs/serve-static';
+
 
 patchNestjsSwagger();
 
@@ -52,9 +51,7 @@ async function bootstrap() {
     origin: '*',
   });
   
-  // 配置静态文件服务（临时文件）
-  const express = require('express');
-  app.use('/temp', express.static(join(process.cwd(), 'temp')));
+
   
   setupSwagger(app);
 
