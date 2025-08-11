@@ -46,6 +46,13 @@ export class OpenAiService {
     if (this.isUrl(input)) {
       return this.imageUrlToBase64(input);
     }
+    
+    // 处理data URL格式的base64图像
+    if (input.startsWith('data:image/')) {
+      const base64Data = input.split(',')[1];
+      return base64Data || input;
+    }
+    
     return input;
   }
 
