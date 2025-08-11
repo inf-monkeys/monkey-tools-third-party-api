@@ -14,7 +14,11 @@ export const OpenAiParamsSchema = z
         invalid_type_error: '输入图像必须是URL或Base64编码的字符串',
       })
       .optional()
-      .describe('输入图像（URL或Base64）'),
+      .describe('输入图像（URL或Base64）- 单个图片，向后兼容'),
+    input_images: z
+      .array(z.string())
+      .optional()
+      .describe('输入图像数组（URL或Base64）- 支持多个图片'),
     model: z
       .enum([
         'gpt-4o',

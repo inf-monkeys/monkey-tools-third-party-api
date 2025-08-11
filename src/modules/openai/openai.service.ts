@@ -57,6 +57,34 @@ export class OpenAiService {
   }
 
   /**
+   * 处理多个输入图像
+   * @param inputs 输入图像数组（URL 或 base64）
+   * @returns 处理后的 base64 图像数组
+   */
+  async processMultipleInputImages(inputs: string[]): Promise<string[]> {
+    try {
+      this.logger.log(`开始处理 ${inputs.length} 张输入图像`);
+      const processedImages = await Promise.all(
+        inputs.map(async (input, index) => {
+          try {
+            const processed = await this.processInputImage(input);
+            this.logger.log(`第 ${index + 1} 张图像处理成功`);
+            return processed;
+          } catch (error) {
+            this.logger.error(`第 ${index + 1} 张图像处理失败: ${error.message}`);
+            throw error;
+          }
+        })
+      );
+      this.logger.log(`所有 ${inputs.length} 张图像处理完成`);
+      return processedImages;
+    } catch (error) {
+      this.logger.error(`处理多个输入图像失败: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * 将图片 URL 转换为 base64
    * @param url 图片 URL
    * @returns base64 编码的图片
@@ -173,10 +201,22 @@ export class OpenAiService {
         return await this.generateImage(params, apiKey);
       }
 
-      // 处理输入图像（如果有）
-      let processedInputImage = null;
-      if (params.input_image) {
-        processedInputImage = await this.processInputImage(params.input_image);
+      // 处理输入图像（支持单个或多个）
+      let processedInputImages = null;
+      let imageCount = 0;
+      
+      // 优先使用 input_images 数组
+      if (params.input_images && Array.isArray(params.input_images) && params.input_images.length > 0) {
+        processedInputImages = await this.processMultipleInputImages(params.input_images);
+        imageCount = processedInputImages.length;
+        this.logger.log(`处理了 ${imageCount} 张输入图像`);
+      }
+      // 向后兼容：如果只有单个 input_image
+      else if (params.input_image) {
+        const singleImage = await this.processInputImage(params.input_image);
+        processedInputImages = [singleImage];
+        imageCount = 1;
+        this.logger.log('处理了 1 张输入图像（向后兼容模式）');
       }
 
       // 构建消息数组
@@ -190,24 +230,32 @@ export class OpenAiService {
       }
 
       // 添加用户消息
-      if (processedInputImage) {
+      if (processedInputImages && processedInputImages.length > 0) {
         // 图像分析模式
+        const content = [
+          {
+            type: 'text',
+            text: params.prompt,
+          },
+        ];
+
+        // 添加所有图片
+        processedInputImages.forEach((imageData, index) => {
+          content.push({
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${imageData}`,
+              detail: params.detail || 'auto',
+            },
+          } as any);
+        });
+
         messages.push({
           role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: params.prompt,
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${processedInputImage}`,
-                detail: params.detail || 'auto',
-              },
-            },
-          ],
+          content: content,
         });
+
+        this.logger.log(`构建了包含 ${imageCount} 张图像的消息`);
       } else {
         // 文本生成模式
         messages.push({
@@ -224,7 +272,7 @@ export class OpenAiService {
         temperature: params.temperature || 0.7,
       };
 
-      this.logger.log(`发送请求到 OpenAI API，模型: ${requestBody.model}`);
+      this.logger.log(`发送请求到 OpenAI API，模型: ${requestBody.model}，包含 ${imageCount} 张图像`);
 
       // 发送请求
       const response = await firstValueFrom(
@@ -428,14 +476,35 @@ export class OpenAiService {
     try {
       this.logger.log('开始 gpt-image-1 图像编辑请求');
 
-      // 处理输入图像
-      const imageData = await this.processInputImage(params.input_image);
+      // 处理输入图像（支持单个或多个）
+      let processedInputImages = [];
+      let imageCount = 0;
+      
+      // 优先使用 input_images 数组
+      if (params.input_images && Array.isArray(params.input_images) && params.input_images.length > 0) {
+        processedInputImages = await this.processMultipleInputImages(params.input_images);
+        imageCount = processedInputImages.length;
+        this.logger.log(`处理了 ${imageCount} 张输入图像用于编辑`);
+      }
+      // 向后兼容：如果只有单个 input_image
+      else if (params.input_image) {
+        const singleImage = await this.processInputImage(params.input_image);
+        processedInputImages = [singleImage];
+        imageCount = 1;
+        this.logger.log('处理了 1 张输入图像用于编辑（向后兼容模式）');
+      } else {
+        throw new Error('必须提供输入图像（input_image 或 input_images）');
+      }
+
+      // 注意：OpenAI的编辑API目前只支持单张图片，所以我们只处理第一张
+      const primaryImage = processedInputImages[0];
+      this.logger.log(`使用第一张图像进行编辑，总共 ${imageCount} 张图像`);
 
       // 构建FormData用于图像编辑
       const formData = new FormData();
 
       // 将base64转为buffer
-      const imageBuffer = Buffer.from(imageData, 'base64');
+      const imageBuffer = Buffer.from(primaryImage, 'base64');
       
       // 根据官方文档，使用 image 参数格式
       formData.append('image', imageBuffer, 'image.png');
@@ -452,7 +521,7 @@ export class OpenAiService {
         formData.append('mask', maskBuffer, 'mask.png');
       }
 
-      this.logger.log('发送 gpt-image-1 图像编辑请求到 /images/edits');
+      this.logger.log(`发送 gpt-image-1 图像编辑请求到 /images/edits，基于 ${imageCount} 张输入图像中的第一张`);
 
       // 发送图像编辑请求到正确的端点
       const response = await firstValueFrom(
@@ -544,6 +613,7 @@ export class OpenAiService {
         images: processedImages,
         created: imageEditResult.created,
         usage: imageEditResult.usage,
+        inputImageCount: imageCount, // 添加输入图像数量信息
       };
     } catch (error) {
       this.logger.error(`gpt-image-1 图像编辑失败: ${error.message}`);

@@ -57,6 +57,7 @@ export class OpenAiController {
       default: {
         prompt: '请分析这张图片',
         input_image: '',
+        input_images: [], // 新增：支持多个图片输入
         model: 'gpt-4o',
         max_tokens: 1000,
         temperature: 0.7,
@@ -138,6 +139,18 @@ export class OpenAiController {
       description: {
         'zh-CN': 'OpenAI 返回的请求ID',
         'en-US': 'Request ID returned by OpenAI',
+      },
+    },
+    {
+      name: 'inputImageCount',
+      displayName: {
+        'zh-CN': '输入图像数量',
+        'en-US': 'Input Image Count',
+      },
+      type: 'number',
+      description: {
+        'zh-CN': '处理的输入图像数量（图像编辑时）',
+        'en-US': 'Number of input images processed (for image editing)',
       },
     },
   ])
