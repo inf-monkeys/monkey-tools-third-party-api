@@ -209,10 +209,16 @@ export class OpenAiService {
       if (params.input_images && Array.isArray(params.input_images) && params.input_images.length > 0) {
         processedInputImages = await this.processMultipleInputImages(params.input_images);
         imageCount = processedInputImages.length;
-        this.logger.log(`处理了 ${imageCount} 张输入图像`);
+        this.logger.log(`处理了 ${imageCount} 张输入图像（input_images）`);
+      }
+      // 处理 input_image 为数组的情况
+      else if (params.input_image && Array.isArray(params.input_image) && params.input_image.length > 0) {
+        processedInputImages = await this.processMultipleInputImages(params.input_image);
+        imageCount = processedInputImages.length;
+        this.logger.log(`处理了 ${imageCount} 张输入图像（input_image 数组）`);
       }
       // 向后兼容：如果只有单个 input_image
-      else if (params.input_image) {
+      else if (params.input_image && typeof params.input_image === 'string') {
         const singleImage = await this.processInputImage(params.input_image);
         processedInputImages = [singleImage];
         imageCount = 1;
@@ -484,10 +490,16 @@ export class OpenAiService {
       if (params.input_images && Array.isArray(params.input_images) && params.input_images.length > 0) {
         processedInputImages = await this.processMultipleInputImages(params.input_images);
         imageCount = processedInputImages.length;
-        this.logger.log(`处理了 ${imageCount} 张输入图像用于编辑`);
+        this.logger.log(`处理了 ${imageCount} 张输入图像用于编辑（input_images）`);
+      }
+      // 处理 input_image 为数组的情况
+      else if (params.input_image && Array.isArray(params.input_image) && params.input_image.length > 0) {
+        processedInputImages = await this.processMultipleInputImages(params.input_image);
+        imageCount = processedInputImages.length;
+        this.logger.log(`处理了 ${imageCount} 张输入图像用于编辑（input_image 数组）`);
       }
       // 向后兼容：如果只有单个 input_image
-      else if (params.input_image) {
+      else if (params.input_image && typeof params.input_image === 'string') {
         const singleImage = await this.processInputImage(params.input_image);
         processedInputImages = [singleImage];
         imageCount = 1;

@@ -10,11 +10,14 @@ export const OpenAiParamsSchema = z
       })
       .describe('文本提示'),
     input_image: z
-      .string({
-        invalid_type_error: '输入图像必须是URL或Base64编码的字符串',
-      })
+      .union([
+        z.string({
+          invalid_type_error: '输入图像必须是URL或Base64编码的字符串',
+        }),
+        z.array(z.string()).min(1, '输入图像数组不能为空'),
+      ])
       .optional()
-      .describe('输入图像（URL或Base64）- 单个图片，向后兼容'),
+      .describe('输入图像（URL或Base64）- 支持单个图片或图片数组'),
     input_images: z
       .array(z.string())
       .optional()
