@@ -94,6 +94,7 @@ export class OpenAiService {
     }
   }
 
+
   /**
    * 映射质量参数，将 legacy 参数映射到新的参数
    * @param quality 原始质量参数
@@ -296,7 +297,8 @@ export class OpenAiService {
       );
 
       // 检查是否为图像编辑模式
-      if (params.operation === 'edit' && params.input_image) {
+      // 如果有input_image，自动判断为编辑模式
+      if ((params.operation === 'edit' || params.input_image) && params.input_image) {
         return await this.editImage(params, apiKey);
       }
 
