@@ -428,8 +428,8 @@ export class OpenAiService {
       // 将base64转为buffer
       const imageBuffer = Buffer.from(imageData, 'base64');
       
-      // 根据官方文档，使用 image[] 数组格式
-      formData.append('image[]', imageBuffer, 'image.png');
+      // 根据官方文档，使用 image 参数格式
+      formData.append('image', imageBuffer, 'image.png');
       formData.append('model', 'gpt-image-1');
       formData.append('prompt', params.prompt);
       formData.append('n', (params.n || 1).toString());
