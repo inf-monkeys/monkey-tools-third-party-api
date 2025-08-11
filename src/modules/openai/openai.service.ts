@@ -88,6 +88,25 @@ export class OpenAiService {
   }
 
   /**
+   * 映射质量参数，将 legacy 参数映射到新的参数
+   * @param quality 原始质量参数
+   * @returns 映射后的质量参数
+   */
+  private mapQuality(quality?: string): string {
+    if (!quality) return 'high';
+    
+    // 将 legacy 参数映射到新的参数
+    switch (quality.toLowerCase()) {
+      case 'standard':
+        return 'high';
+      case 'hd':
+        return 'high';
+      default:
+        return quality;
+    }
+  }
+
+  /**
    * 从凭证对象中获取API密钥
    * @param credential 凭证对象或API密钥字符串
    * @returns API密钥
@@ -280,7 +299,7 @@ export class OpenAiService {
         prompt: params.prompt,
         n: params.n || 1,
         size: params.size || '1024x1024',
-        quality: params.quality || 'high', // gpt-image-1支持: low, medium, high, auto
+        quality: this.mapQuality(params.quality) || 'high', // gpt-image-1支持: low, medium, high, auto
         // gpt-image-1 不支持 style 参数，已移除
       };
 
@@ -391,14 +410,14 @@ export class OpenAiService {
 
 
   /**
-   * 编辑图像
+   * 编辑图像 - gpt-image-1 图像编辑（基于官方文档）
    * @param params 请求参数
    * @param apiKey API密钥
    * @returns 图像编辑结果
    */
   async editImage(params: any, apiKey: string): Promise<any> {
     try {
-      this.logger.log('开始图像编辑请求');
+      this.logger.log('开始 gpt-image-1 图像编辑请求');
 
       // 处理输入图像
       const imageData = await this.processInputImage(params.input_image);
@@ -408,12 +427,14 @@ export class OpenAiService {
 
       // 将base64转为buffer
       const imageBuffer = Buffer.from(imageData, 'base64');
-      formData.append('image', imageBuffer, 'image.png');
+      
+      // 根据官方文档，使用 image[] 数组格式
+      formData.append('image[]', imageBuffer, 'image.png');
       formData.append('model', 'gpt-image-1');
       formData.append('prompt', params.prompt);
-      formData.append('n', params.n || 1);
+      formData.append('n', (params.n || 1).toString());
       formData.append('size', params.size || '1024x1024');
-      formData.append('quality', params.quality || 'high');
+      formData.append('quality', this.mapQuality(params.quality) || 'high');
 
       // 如果有蒙版图像，也添加进去
       if (params.mask_image) {
@@ -422,9 +443,9 @@ export class OpenAiService {
         formData.append('mask', maskBuffer, 'mask.png');
       }
 
-      this.logger.log('发送图像编辑请求');
+      this.logger.log('发送 gpt-image-1 图像编辑请求到 /images/edits');
 
-      // 发送图像编辑请求
+      // 发送图像编辑请求到正确的端点
       const response = await firstValueFrom(
         this.httpService.post(`${this.apiBaseUrl}/images/edits`, formData, {
           headers: {
@@ -435,25 +456,75 @@ export class OpenAiService {
             config.proxy?.enabled && config.proxy?.url
               ? {
                   host: new URL(config.proxy.url).hostname,
-                  port: parseInt(new URL(config.proxy.url).port) || 80,
+                  port: parseInt(new URL(config.proxy.url).port),
+                  protocol: new URL(config.proxy.url).protocol,
                 }
-              : false,
+              : undefined,
           timeout: 120000,
         }),
       );
 
       const imageEditResult = response.data;
       this.logger.log(
-        `图像编辑完成，生成了 ${imageEditResult.data?.length || 0} 张图像`,
+        `gpt-image-1 图像编辑完成，生成了 ${imageEditResult.data?.length || 0} 张图像`,
       );
 
-      // 处理生成的图像URL并上传到S3 - 使用与图像生成相同的处理方式
-      const processedImages = await processContentUrls(
-        imageEditResult.data?.map((img: any) => ({
-          url: img.url,
-          revised_prompt: img.revised_prompt || params.prompt,
-        })) || [],
-      );
+      // 处理生成的图像数据
+      let processedImages;
+      if (imageEditResult.data && imageEditResult.data.length > 0) {
+        const images = imageEditResult.data;
+        
+        if (images[0].url) {
+          // 如果返回的是URL，通过processContentUrls处理
+          processedImages = await processContentUrls(
+            images.map((img: any) => ({
+              url: img.url,
+              revised_prompt: img.revised_prompt || params.prompt,
+            })),
+          );
+        } else if (images[0].b64_json) {
+          // 如果返回的是base64数据，转换为URL（仅使用S3）
+          if (this.s3Enabled) {
+            processedImages = await Promise.all(
+              images.map(async (img: any) => {
+                try {
+                  const buffer = Buffer.from(img.b64_json, 'base64');
+                  const fileKey = `images/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+                  const url = await this.s3Helpers.uploadFile(buffer, fileKey, 'image/png');
+                  this.logger.log(`成功上传编辑后的图像到S3: ${url}`);
+                  
+                  return {
+                    url: url,
+                    revised_prompt: img.revised_prompt || params.prompt,
+                  };
+                } catch (error) {
+                  this.logger.error(`转换图像URL失败: ${error.message}`);
+                  // 如果转换失败，返回base64数据
+                  return {
+                    b64_json: img.b64_json,
+                    revised_prompt: img.revised_prompt || params.prompt,
+                  };
+                }
+              }),
+            );
+          } else {
+            // 如果没有S3配置，直接返回base64数据
+            this.logger.warn('S3未配置，直接返回base64图像数据');
+            processedImages = images.map((img: any) => ({
+              b64_json: img.b64_json,
+              revised_prompt: img.revised_prompt || params.prompt,
+            }));
+          }
+        } else {
+          // 直接返回原始数据
+          processedImages = images.map((img: any) => ({
+            revised_prompt: img.revised_prompt || params.prompt,
+            ...img,
+          }));
+        }
+      } else {
+        processedImages = [];
+      }
 
       // 生成请求ID
       const requestId = Date.now().toString();
@@ -461,13 +532,13 @@ export class OpenAiService {
       return {
         requestId: requestId,
         status: 'completed',
-        data: processedImages,
+        images: processedImages,
         created: imageEditResult.created,
         usage: imageEditResult.usage,
       };
     } catch (error) {
-      this.logger.error(`图像编辑失败: ${error.message}`);
-      throw new Error(`图像编辑失败: ${error.message}`);
+      this.logger.error(`gpt-image-1 图像编辑失败: ${error.message}`);
+      throw new Error(`gpt-image-1 图像编辑失败: ${error.message}`);
     }
   }
 

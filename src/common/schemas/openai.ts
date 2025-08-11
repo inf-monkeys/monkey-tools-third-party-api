@@ -48,7 +48,7 @@ export const OpenAiParamsSchema = z
       .default('1024x1024')
       .describe('生成图像的尺寸'),
     quality: z
-      .enum(['low', 'medium', 'high', 'auto'])
+      .enum(['low', 'medium', 'high', 'auto', 'standard'])
       .default('high')
       .describe('图像质量'),
     style: z.enum(['vivid', 'natural']).default('natural').describe('图像风格'),
