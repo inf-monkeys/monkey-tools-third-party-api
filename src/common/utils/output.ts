@@ -37,7 +37,7 @@ async function isFileUrl(url: string): Promise<boolean> {
   try {
     // 先尝试 HEAD 请求
     try {
-      const headResponse = await axios.head(url);
+      const headResponse = await axios.head(url, { proxy: false });
       const contentType = headResponse.headers['content-type'];
       return contentType && !contentType.startsWith('text/html');
     } catch {
@@ -49,6 +49,7 @@ async function isFileUrl(url: string): Promise<boolean> {
         responseType: 'stream',
         maxContentLength: 0,
         cancelToken: source.token,
+        proxy: false // 禁用代理
       });
 
       // 收到响应头后立即取消请求
@@ -79,7 +80,12 @@ function getExtensionFromUrl(url: string): string {
  */
 async function uploadToS3(url: string): Promise<string> {
   try {
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    // 禁用代理以避免网络连接问题
+    const axiosConfig = { 
+      responseType: 'arraybuffer' as const,
+      proxy: false as const // 明确禁用代理
+    };
+    const response = await axios.get(url, axiosConfig);
     let fileExtension: string;
 
     // 从Content-Disposition获取文件名

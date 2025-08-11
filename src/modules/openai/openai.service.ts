@@ -60,6 +60,7 @@ export class OpenAiService {
       const response = await firstValueFrom(
         this.httpService.get(url, {
           responseType: 'arraybuffer',
+          proxy: false, // 禁用代理避免网络连接问题
         }),
       );
 
