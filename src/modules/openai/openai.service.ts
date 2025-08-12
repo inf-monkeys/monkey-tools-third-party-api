@@ -508,18 +508,17 @@ export class OpenAiService {
         throw new Error('必须提供输入图像（input_image 或 input_images）');
       }
 
-      // 注意：OpenAI的编辑API目前只支持单张图片，所以我们只处理第一张
-      const primaryImage = processedInputImages[0];
-      this.logger.log(`使用第一张图像进行编辑，总共 ${imageCount} 张图像`);
+      // 根据官方文档，gpt-image-1 支持多图编辑
+      this.logger.log(`使用 ${imageCount} 张图像进行编辑`);
 
       // 构建FormData用于图像编辑
       const formData = new FormData();
 
-      // 将base64转为buffer
-      const imageBuffer = Buffer.from(primaryImage, 'base64');
-      
-      // 根据官方文档，使用 image 参数格式
-      formData.append('image', imageBuffer, 'image.png');
+      // 添加所有输入图像
+      processedInputImages.forEach((imageData, index) => {
+        const imageBuffer = Buffer.from(imageData, 'base64');
+        formData.append('image[]', imageBuffer, `image_${index}.png`);
+      });
       formData.append('model', 'gpt-image-1');
       formData.append('prompt', params.prompt);
       formData.append('n', (params.n || 1).toString());
@@ -533,7 +532,7 @@ export class OpenAiService {
         formData.append('mask', maskBuffer, 'mask.png');
       }
 
-      this.logger.log(`发送 gpt-image-1 图像编辑请求到 /images/edits，基于 ${imageCount} 张输入图像中的第一张`);
+      this.logger.log(`发送 gpt-image-1 图像编辑请求到 /images/edits，基于 ${imageCount} 张输入图像`);
 
       // 发送图像编辑请求到正确的端点
       const response = await firstValueFrom(
