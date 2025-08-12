@@ -51,13 +51,17 @@ export const OpenAiParamsSchema = z
       .describe('图像分析详细程度'),
     system_prompt: z.string().optional().describe('系统提示词'),
     size: z
-      .enum(['256x256', '512x512', '1024x1024', '1792x1024', '1024x1792'])
-      .default('1024x1024')
-      .describe('生成图像的尺寸'),
+      .enum(['1024x1024', '1536x1024', '1024x1536', 'auto'])
+      .default('auto')
+      .describe(
+        '生成图像的尺寸 - 支持正方形(1024x1024)、横向(1536x1024)、纵向(1024x1536)和自动(auto)',
+      ),
     quality: z
       .enum(['low', 'medium', 'high', 'auto', 'standard'])
-      .default('high')
-      .describe('图像质量'),
+      .default('auto')
+      .describe(
+        '图像质量 - 支持低(low)、中(medium)、高(high)、自动(auto)和标准(standard)',
+      ),
     style: z.enum(['vivid', 'natural']).default('natural').describe('图像风格'),
     n: z.number().min(1).max(4).default(1).describe('生成图片数量'),
     mask_image: z.string().optional().describe('蒙版图像（用于图像编辑）'),
