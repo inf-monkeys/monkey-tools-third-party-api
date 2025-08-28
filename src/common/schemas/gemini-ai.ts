@@ -6,13 +6,13 @@ export const GeminiAiParamsSchema = z
   .object({
     prompt: z
       .string({
-        invalid_type_error: '提示词必须是字符串',
+        message: '提示词必须是字符串',
       })
       .optional()
       .describe('文本提示'),
     input_image: z
       .string({
-        invalid_type_error: '输入图像必须是URL或Base64编码的字符串',
+        message: '输入图像必须是URL或Base64编码的字符串',
       })
       .optional()
       .describe('输入图像（URL或Base64）'),

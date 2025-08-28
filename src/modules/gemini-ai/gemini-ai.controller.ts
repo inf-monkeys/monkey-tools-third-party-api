@@ -42,6 +42,37 @@ export class GeminiAiController {
   ])
   @MonkeyToolInput([
     {
+      name: 'baseUrl',
+      type: 'string',
+      displayName: {
+        'zh-CN': 'API 基础 URL',
+        'en-US': 'API Base URL',
+      },
+      description: {
+        'zh-CN':
+          'API 基础 URL，默认为 https://generativelanguage.googleapis.com',
+        'en-US':
+          'API Base URL, default is https://generativelanguage.googleapis.com',
+      },
+      default: 'https://generativelanguage.googleapis.com',
+      required: false,
+    },
+    {
+      name: 'model',
+      type: 'string',
+      displayName: {
+        'zh-CN': '模型',
+        'en-US': 'Model',
+      },
+      description: {
+        'zh-CN': '模型名称，默认为 gemini-2.0-flash-preview-image-generation',
+        'en-US':
+          'Model name, default is gemini-2.0-flash-preview-image-generation',
+      },
+      default: 'gemini-2.0-flash-preview-image-generation',
+      required: false,
+    },
+    {
       name: 'input',
       type: 'json',
       displayName: {
@@ -58,21 +89,6 @@ export class GeminiAiController {
         input_image: '',
       },
       required: true,
-    },
-    {
-      name: 'model',
-      type: 'string',
-      displayName: {
-        'zh-CN': '模型',
-        'en-US': 'Model',
-      },
-      description: {
-        'zh-CN': '模型名称，默认为 gemini-2.0-flash-preview-image-generation',
-        'en-US':
-          'Model name, default is gemini-2.0-flash-preview-image-generation',
-      },
-      default: 'gemini-2.0-flash-preview-image-generation',
-      required: false,
     },
   ])
   @MonkeyToolOutput([
@@ -133,6 +149,7 @@ export class GeminiAiController {
     const result = await this.geminiAiService.executeRequest(
       processedBody,
       body.model as string | undefined,
+      body.baseUrl as string | undefined,
     );
 
     return {

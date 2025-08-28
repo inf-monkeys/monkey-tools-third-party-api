@@ -4,8 +4,7 @@ import { createZodDto } from '@anatine/zod-nestjs';
 // 定义 FalAI 请求体的 Zod 模式
 export const FalAiRequestSchema = z.object({
   endpoint: z.string({
-    required_error: 'API 端点是必填的',
-    invalid_type_error: 'API 端点必须是字符串',
+    message: 'API 端点是必填的，必须是字符串',
   }),
   input: z.any().optional(),
   credential: z

@@ -1,15 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { GoogleGenAI, GoogleGenAIOptions, Modality } from '@google/genai';
 import { setGlobalDispatcher, ProxyAgent } from 'undici';
 import { S3Helpers } from '../../common/s3';
 import { config } from '../../common/config';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 @Injectable()
 export class GeminiAiService {
   private readonly logger = new Logger(GeminiAiService.name);
-  private readonly apiBaseUrl = 'https://generativelanguage.googleapis.com';
+  private readonly defaultApiBaseUrl =
+    'https://generativelanguage.googleapis.com';
   private readonly defaultModel = 'gemini-2.0-flash-preview-image-generation';
 
   private readonly s3Helpers: S3Helpers | null = null;
@@ -137,7 +138,11 @@ export class GeminiAiService {
    * @param params 请求参数
    * @returns 请求结果
    */
-  async submitRequest(params: any, model?: string): Promise<any> {
+  async submitRequest(
+    params: any,
+    model?: string,
+    baseUrl?: string,
+  ): Promise<any> {
     try {
       const apiKey = this.getApiKey(params.credential);
 
@@ -157,41 +162,37 @@ export class GeminiAiService {
         setGlobalDispatcher(dispatcher);
       }
 
-      const genAIOptions: GoogleGenAIOptions = { apiKey };
+      const google = createGoogleGenerativeAI({
+        baseURL: baseUrl ?? this.defaultApiBaseUrl,
+        apiKey,
+      });
 
-      const ai = new GoogleGenAI(genAIOptions);
+      const modelInstance = google(model ?? this.defaultModel);
 
       try {
-        this.logger.log('准备请求内容...');
-
-        // 准备请求内容
         const contents: any[] = [];
 
         // 添加文本提示
         if (params.prompt) {
-          contents.push({ text: params.prompt });
+          contents.push({ type: 'text', text: params.prompt });
         }
 
         // 添加输入图像（如果有）
         if (processedInputImage) {
           contents.push({
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: processedInputImage,
-            },
+            type: 'file',
+            data: processedInputImage,
           });
         }
 
-        this.logger.log(`请求内容准备完成，包含 ${contents.length} 个部分`);
         this.logger.log('发送请求到 Google Gemini API...');
-
-        // 使用与官方示例相同的调用方式
-        const response = await ai.models.generateContent({
-          model: model ?? this.defaultModel,
-          contents: contents,
-          config: {
-            responseModalities: [Modality.TEXT, Modality.IMAGE],
-          },
+        const response = await modelInstance.doGenerate({
+          prompt: [
+            {
+              role: 'user',
+              content: contents,
+            },
+          ],
         });
 
         this.logger.log('收到 Google Gemini API 响应');
@@ -200,22 +201,22 @@ export class GeminiAiService {
         const textParts = [];
 
         // 处理响应
-        if (response.candidates && response.candidates.length > 0) {
-          for (const part of response.candidates[0].content.parts) {
+        if (response.content.length > 0) {
+          for (const part of response.content) {
             // 根据部分类型，显示文本或保存图像
-            if (part.text) {
+            if (part.type === 'text') {
               this.logger.log(`收到文本响应: ${part.text.substring(0, 50)}...`);
               textParts.push(part.text);
-            } else if (part.inlineData) {
-              this.logger.log('收到图像响应');
+            } else if (part.type === 'file') {
+              this.logger.log('收到文件响应');
 
               // 检查 S3 是否已启用
               if (this.s3Enabled && this.s3Helpers) {
                 try {
                   // 上传图像到 S3
                   const imageUrl = await this.uploadBase64ImageToS3(
-                    part.inlineData.data,
-                    part.inlineData.mimeType || 'image/jpeg',
+                    part.data.toString(),
+                    part.mediaType || 'image/png',
                   );
 
                   images.push({ url: imageUrl });
@@ -253,7 +254,8 @@ export class GeminiAiService {
         throw new Error(`Google Gemini API 调用失败: ${apiError.message}`);
       }
     } catch (error) {
-      this.logger.error(`提交请求失败: ${error.message}`);
+      this.logger.error(`提交请求失败:`);
+      this.logger.error(error);
       throw new Error(`提交请求失败: ${error.message}`);
     }
   }
@@ -296,9 +298,13 @@ export class GeminiAiService {
    * @param params 请求参数
    * @returns 请求结果
    */
-  async executeRequest(params: any, model?: string): Promise<any> {
+  async executeRequest(
+    params: any,
+    model?: string,
+    baseUrl?: string,
+  ): Promise<any> {
     try {
-      const result = await this.submitRequest(params, model);
+      const result = await this.submitRequest(params, model, baseUrl);
       return this.formatImageResults(result);
     } catch (error) {
       this.logger.error(`执行请求失败: ${error.message}`);

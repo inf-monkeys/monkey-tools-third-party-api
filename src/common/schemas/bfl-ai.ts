@@ -6,13 +6,12 @@ const BflAiParamsSchema = z
   .object({
     prompt: z
       .string({
-        required_error: '提示词是必填的',
-        invalid_type_error: '提示词必须是字符串',
+        message: '提示词必须是字符串',
       })
       .optional(),
     input_image: z
       .string({
-        invalid_type_error: '输入图像必须是 base64 编码的字符串',
+        message: '输入图像必须是 base64 编码的字符串',
       })
       .optional()
       .describe('输入图像的 base64 编码'),
@@ -35,7 +34,7 @@ export const BflAiRequestSchema = z
   .object({
     // 支持两种方式：直接传参数或通过 input 字段传参数
     input: z
-      .union([BflAiParamsSchema, z.record(z.any())])
+      .union([BflAiParamsSchema, z.record(z.string(), z.any())])
       .optional()
       .describe('输入参数，包含提示词、输入图像等'),
 

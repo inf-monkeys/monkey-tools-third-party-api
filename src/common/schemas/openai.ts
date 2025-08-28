@@ -6,13 +6,13 @@ export const OpenAiParamsSchema = z
   .object({
     prompt: z
       .string({
-        invalid_type_error: '提示词必须是字符串',
+        message: '提示词必须是字符串',
       })
       .describe('文本提示'),
     input_image: z
       .union([
         z.string({
-          invalid_type_error: '输入图像必须是URL或Base64编码的字符串',
+          message: '输入图像必须是URL或Base64编码的字符串',
         }),
         z.array(z.string()).min(1, '输入图像数组不能为空'),
       ])

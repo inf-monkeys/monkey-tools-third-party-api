@@ -6,8 +6,7 @@ import { createZodDto } from '@anatine/zod-nestjs';
 // 定义字节ARK API内部参数的Zod模式（同时支持文生图和图生图）
 export const ByteArkImageParamsSchema = z.object({
   prompt: z.string({
-    required_error: '提示词是必填的',
-    invalid_type_error: '提示词必须是字符串',
+    message: '提示词是必填的，必须是字符串',
   }),
   // 模型参数可选，根据是否提供image参数自动选择合适的默认模型
   model: z.string().optional(),
