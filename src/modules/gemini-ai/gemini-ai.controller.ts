@@ -71,9 +71,7 @@ export class GeminiAiController {
         'en-US':
           'Model name, default is gemini-2.0-flash-preview-image-generation',
       },
-      default: {
-        model: 'gemini-2.0-flash-preview-image-generation',
-      },
+      default: 'gemini-2.0-flash-preview-image-generation',
       required: false,
     },
   ])
