@@ -60,6 +60,25 @@ export class GeminiAiController {
       required: true,
     },
   ])
+  @MonkeyToolInput([
+    {
+      name: 'model',
+      type: 'string',
+      displayName: {
+        'zh-CN': '模型',
+        'en-US': 'Model',
+      },
+      description: {
+        'zh-CN': '模型名称，默认为 gemini-2.0-flash-preview-image-generation',
+        'en-US':
+          'Model name, default is gemini-2.0-flash-preview-image-generation',
+      },
+      default: {
+        model: 'gemini-2.0-flash-preview-image-generation',
+      },
+      required: false,
+    },
+  ])
   @MonkeyToolOutput([
     {
       name: 'code',
@@ -115,7 +134,10 @@ export class GeminiAiController {
       );
     }
 
-    const result = await this.geminiAiService.executeRequest(processedBody);
+    const result = await this.geminiAiService.executeRequest(
+      processedBody,
+      body.model as string | undefined,
+    );
 
     return {
       code: 200,

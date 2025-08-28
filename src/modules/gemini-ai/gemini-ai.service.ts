@@ -10,7 +10,7 @@ import { config } from '../../common/config';
 export class GeminiAiService {
   private readonly logger = new Logger(GeminiAiService.name);
   private readonly apiBaseUrl = 'https://generativelanguage.googleapis.com';
-  private readonly model = 'gemini-2.0-flash-preview-image-generation';
+  private readonly defaultModel = 'gemini-2.0-flash-preview-image-generation';
 
   private readonly s3Helpers: S3Helpers | null = null;
   private readonly s3Enabled: boolean = false;
@@ -137,7 +137,7 @@ export class GeminiAiService {
    * @param params 请求参数
    * @returns 请求结果
    */
-  async submitRequest(params: any): Promise<any> {
+  async submitRequest(params: any, model?: string): Promise<any> {
     try {
       const apiKey = this.getApiKey(params.credential);
 
@@ -187,7 +187,7 @@ export class GeminiAiService {
 
         // 使用与官方示例相同的调用方式
         const response = await ai.models.generateContent({
-          model: this.model,
+          model: model ?? this.defaultModel,
           contents: contents,
           config: {
             responseModalities: [Modality.TEXT, Modality.IMAGE],
@@ -296,9 +296,9 @@ export class GeminiAiService {
    * @param params 请求参数
    * @returns 请求结果
    */
-  async executeRequest(params: any): Promise<any> {
+  async executeRequest(params: any, model?: string): Promise<any> {
     try {
-      const result = await this.submitRequest(params);
+      const result = await this.submitRequest(params, model);
       return this.formatImageResults(result);
     } catch (error) {
       this.logger.error(`执行请求失败: ${error.message}`);
