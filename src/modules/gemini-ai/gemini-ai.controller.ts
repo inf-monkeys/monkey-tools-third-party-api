@@ -59,8 +59,6 @@ export class GeminiAiController {
       },
       required: true,
     },
-  ])
-  @MonkeyToolInput([
     {
       name: 'model',
       type: 'string',
