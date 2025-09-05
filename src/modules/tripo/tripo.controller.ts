@@ -143,6 +143,7 @@ export class TripoController {
         // 如果 input 是字符串，尝试解析为 JSON 对象
         try {
           const inputObj = JSON.parse(bodyWithInput.input);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { input, ...restBody } = bodyWithInput;
           processedBody = { ...restBody, ...inputObj };
           this.logger.log(

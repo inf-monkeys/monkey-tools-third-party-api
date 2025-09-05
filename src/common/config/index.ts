@@ -57,6 +57,10 @@ export interface OpenAiConfig {
   apiKey?: string;
 }
 
+export interface GoogleSearchConfig {
+  apiKey?: string;
+}
+
 export interface Config {
   server: ServerConfig;
   s3?: S3Config;
@@ -69,6 +73,7 @@ export interface Config {
   gemini: GeminiConfig;
   byteArk: ByteArkConfig;
   openai: OpenAiConfig;
+  googleSearch: GoogleSearchConfig;
 }
 
 const port = readConfig('server.port', 3000);
@@ -115,6 +120,9 @@ export const config: Config = {
   },
   openai: {
     apiKey: readConfig('openai.apiKey'),
+  },
+  googleSearch: {
+    apiKey: readConfig('googleSearch.apiKey') || process.env.GOOGLE_SEARCH_API_KEY,
   },
 };
 

@@ -1,5 +1,4 @@
-import { Controller, Get, Inject, Param, Res } from '@nestjs/common';
-import { Response } from 'express';
+import { Controller } from '@nestjs/common';
 
 @Controller('logs')
 export class LogController {

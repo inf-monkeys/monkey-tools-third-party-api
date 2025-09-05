@@ -8,7 +8,6 @@ import { ExceptionsFilter } from './common/filters/exception.filter';
 import { logger } from './common/logger';
 import { patchNestjsSwagger } from '@anatine/zod-nestjs';
 
-
 patchNestjsSwagger();
 
 export const setupSwagger = (app: INestApplication) => {

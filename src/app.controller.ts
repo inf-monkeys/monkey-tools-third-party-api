@@ -37,7 +37,7 @@ export class AppController {
           name: 'fal-ai',
           type: CredentialAuthType.AKSK,
           displayName: 'Fal AI',
-          // @ts-ignore
+          // @ts-expect-error - iconUrl property not defined in type
           iconUrl: 'https://fal.ai/favicon.png',
           properties: [
             {
@@ -59,7 +59,7 @@ export class AppController {
           type: CredentialAuthType.AKSK,
           displayName: '即梦',
           logo: '',
-          // @ts-ignore
+          // @ts-expect-error - properties property not defined in type
           properties: [
             {
               displayName: 'API Key',
@@ -74,7 +74,7 @@ export class AppController {
           type: CredentialAuthType.AKSK,
           displayName: 'Tripo API',
           logo: '',
-          // @ts-ignore
+          // @ts-expect-error - properties property not defined in type
           properties: [
             {
               displayName: 'API Key',
@@ -89,7 +89,7 @@ export class AppController {
           type: CredentialAuthType.AKSK,
           displayName: 'BFL API',
           logo: '',
-          // @ts-ignore
+          // @ts-expect-error - properties property not defined in type
           properties: [
             {
               displayName: 'API Key',
@@ -103,7 +103,7 @@ export class AppController {
           name: 'gemini',
           type: CredentialAuthType.AKSK,
           displayName: 'Google Gemini',
-          // @ts-ignore
+          // @ts-expect-error - iconUrl property not defined in type
           iconUrl:
             'https://www.gstatic.com/lamda/images/favicon_v1_70c80ffdf27202fd2e84f.png',
           properties: [
@@ -125,7 +125,7 @@ export class AppController {
           name: 'byte-ark',
           type: CredentialAuthType.AKSK,
           displayName: '字节 ARK AI',
-          // @ts-ignore
+          // @ts-expect-error - iconUrl property not defined in type
           iconUrl: 'https://ark.bytedance.com/favicon.ico',
           properties: [
             {
@@ -146,7 +146,7 @@ export class AppController {
           name: 'openai',
           type: CredentialAuthType.AKSK,
           displayName: 'OpenAI',
-          // @ts-ignore
+          // @ts-expect-error - iconUrl property not defined in type
           iconUrl: 'https://openai.com/favicon.ico',
           properties: [
             {

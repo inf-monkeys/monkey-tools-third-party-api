@@ -46,13 +46,13 @@ export class OpenAiService {
     if (this.isUrl(input)) {
       return this.imageUrlToBase64(input);
     }
-    
+
     // 处理data URL格式的base64图像
     if (input.startsWith('data:image/')) {
       const base64Data = input.split(',')[1];
       return base64Data || input;
     }
-    
+
     return input;
   }
 
@@ -71,10 +71,12 @@ export class OpenAiService {
             this.logger.log(`第 ${index + 1} 张图像处理成功`);
             return processed;
           } catch (error) {
-            this.logger.error(`第 ${index + 1} 张图像处理失败: ${error.message}`);
+            this.logger.error(
+              `第 ${index + 1} 张图像处理失败: ${error.message}`,
+            );
             throw error;
           }
-        })
+        }),
       );
       this.logger.log(`所有 ${inputs.length} 张图像处理完成`);
       return processedImages;
@@ -122,7 +124,6 @@ export class OpenAiService {
     }
   }
 
-
   /**
    * 映射质量参数，将 legacy 参数映射到新的参数
    * @param quality 原始质量参数
@@ -130,7 +131,7 @@ export class OpenAiService {
    */
   private mapQuality(quality?: string): string {
     if (!quality) return 'high';
-    
+
     // 将 legacy 参数映射到新的参数
     switch (quality.toLowerCase()) {
       case 'standard':
@@ -204,16 +205,28 @@ export class OpenAiService {
       // 处理输入图像（支持单个或多个）
       let processedInputImages = null;
       let imageCount = 0;
-      
+
       // 优先使用 input_images 数组
-      if (params.input_images && Array.isArray(params.input_images) && params.input_images.length > 0) {
-        processedInputImages = await this.processMultipleInputImages(params.input_images);
+      if (
+        params.input_images &&
+        Array.isArray(params.input_images) &&
+        params.input_images.length > 0
+      ) {
+        processedInputImages = await this.processMultipleInputImages(
+          params.input_images,
+        );
         imageCount = processedInputImages.length;
         this.logger.log(`处理了 ${imageCount} 张输入图像（input_images）`);
       }
       // 处理 input_image 为数组的情况
-      else if (params.input_image && Array.isArray(params.input_image) && params.input_image.length > 0) {
-        processedInputImages = await this.processMultipleInputImages(params.input_image);
+      else if (
+        params.input_image &&
+        Array.isArray(params.input_image) &&
+        params.input_image.length > 0
+      ) {
+        processedInputImages = await this.processMultipleInputImages(
+          params.input_image,
+        );
         imageCount = processedInputImages.length;
         this.logger.log(`处理了 ${imageCount} 张输入图像（input_image 数组）`);
       }
@@ -246,7 +259,7 @@ export class OpenAiService {
         ];
 
         // 添加所有图片
-        processedInputImages.forEach((imageData, index) => {
+        processedInputImages.forEach((imageData) => {
           content.push({
             type: 'image_url',
             image_url: {
@@ -278,7 +291,9 @@ export class OpenAiService {
         temperature: params.temperature || 0.7,
       };
 
-      this.logger.log(`发送请求到 OpenAI API，模型: ${requestBody.model}，包含 ${imageCount} 张图像`);
+      this.logger.log(
+        `发送请求到 OpenAI API，模型: ${requestBody.model}，包含 ${imageCount} 张图像`,
+      );
 
       // 发送请求
       const response = await firstValueFrom(
@@ -352,7 +367,10 @@ export class OpenAiService {
 
       // 检查是否为图像编辑模式
       // 如果有input_image，自动判断为编辑模式
-      if ((params.operation === 'edit' || params.input_image) && params.input_image) {
+      if (
+        (params.operation === 'edit' || params.input_image) &&
+        params.input_image
+      ) {
         return await this.editImage(params, apiKey);
       }
 
@@ -391,11 +409,13 @@ export class OpenAiService {
       );
 
       this.logger.log('收到图像生成响应');
-      this.logger.log(`完整响应数据: ${JSON.stringify(response.data, null, 2)}`);
+      this.logger.log(
+        `完整响应数据: ${JSON.stringify(response.data, null, 2)}`,
+      );
 
       const result = response.data;
       const images = result.data || [];
-      
+
       this.logger.log(`图像数组长度: ${images.length}`);
       this.logger.log(`图像数据: ${JSON.stringify(images, null, 2)}`);
 
@@ -420,9 +440,13 @@ export class OpenAiService {
               try {
                 const buffer = Buffer.from(img.b64_json, 'base64');
                 const fileKey = `images/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
-                const url = await this.s3Helpers.uploadFile(buffer, fileKey, 'image/png');
+                const url = await this.s3Helpers.uploadFile(
+                  buffer,
+                  fileKey,
+                  'image/png',
+                );
                 this.logger.log(`成功上传图像到S3: ${url}`);
-                
+
                 return {
                   url: url,
                   revised_prompt: img.revised_prompt,
@@ -443,8 +467,10 @@ export class OpenAiService {
         // 直接返回原始数据（可能包含base64）
         processedImages = images;
       }
-      
-      this.logger.log(`处理后的图像: ${JSON.stringify(processedImages, null, 2)}`);
+
+      this.logger.log(
+        `处理后的图像: ${JSON.stringify(processedImages, null, 2)}`,
+      );
 
       // 返回图像生成结果
       return {
@@ -461,16 +487,21 @@ export class OpenAiService {
     } catch (error) {
       this.logger.error(`gpt-image-1 图像生成失败: ${error.message}`);
       this.logger.error(`HTTP状态码: ${error.response?.status}`);
-      this.logger.error(`错误详情: ${JSON.stringify(error.response?.data || {})}`);
-      this.logger.error(`请求头: ${JSON.stringify(error.config?.headers || {})}`);
+      this.logger.error(
+        `错误详情: ${JSON.stringify(error.response?.data || {})}`,
+      );
+      this.logger.error(
+        `请求头: ${JSON.stringify(error.config?.headers || {})}`,
+      );
       this.logger.error(`请求体: ${JSON.stringify(error.config?.data || {})}`);
-      
+
       // 返回更详细的错误信息给前端
       const errorDetail = error.response?.data?.error || {};
-      throw new Error(`gpt-image-1 图像生成失败: ${errorDetail.message || error.message} (状态码: ${error.response?.status})`);
+      throw new Error(
+        `gpt-image-1 图像生成失败: ${errorDetail.message || error.message} (状态码: ${error.response?.status})`,
+      );
     }
   }
-
 
   /**
    * 编辑图像 - gpt-image-1 图像编辑（基于官方文档）
@@ -485,18 +516,34 @@ export class OpenAiService {
       // 处理输入图像（支持单个或多个）
       let processedInputImages = [];
       let imageCount = 0;
-      
+
       // 优先使用 input_images 数组
-      if (params.input_images && Array.isArray(params.input_images) && params.input_images.length > 0) {
-        processedInputImages = await this.processMultipleInputImages(params.input_images);
+      if (
+        params.input_images &&
+        Array.isArray(params.input_images) &&
+        params.input_images.length > 0
+      ) {
+        processedInputImages = await this.processMultipleInputImages(
+          params.input_images,
+        );
         imageCount = processedInputImages.length;
-        this.logger.log(`处理了 ${imageCount} 张输入图像用于编辑（input_images）`);
+        this.logger.log(
+          `处理了 ${imageCount} 张输入图像用于编辑（input_images）`,
+        );
       }
       // 处理 input_image 为数组的情况
-      else if (params.input_image && Array.isArray(params.input_image) && params.input_image.length > 0) {
-        processedInputImages = await this.processMultipleInputImages(params.input_image);
+      else if (
+        params.input_image &&
+        Array.isArray(params.input_image) &&
+        params.input_image.length > 0
+      ) {
+        processedInputImages = await this.processMultipleInputImages(
+          params.input_image,
+        );
         imageCount = processedInputImages.length;
-        this.logger.log(`处理了 ${imageCount} 张输入图像用于编辑（input_image 数组）`);
+        this.logger.log(
+          `处理了 ${imageCount} 张输入图像用于编辑（input_image 数组）`,
+        );
       }
       // 向后兼容：如果只有单个 input_image
       else if (params.input_image && typeof params.input_image === 'string') {
@@ -532,7 +579,9 @@ export class OpenAiService {
         formData.append('mask', maskBuffer, 'mask.png');
       }
 
-      this.logger.log(`发送 gpt-image-1 图像编辑请求到 /images/edits，基于 ${imageCount} 张输入图像`);
+      this.logger.log(
+        `发送 gpt-image-1 图像编辑请求到 /images/edits，基于 ${imageCount} 张输入图像`,
+      );
 
       // 发送图像编辑请求到正确的端点
       const response = await firstValueFrom(
@@ -562,7 +611,7 @@ export class OpenAiService {
       let processedImages;
       if (imageEditResult.data && imageEditResult.data.length > 0) {
         const images = imageEditResult.data;
-        
+
         if (images[0].url) {
           // 如果返回的是URL，通过processContentUrls处理
           processedImages = await processContentUrls(
@@ -579,9 +628,13 @@ export class OpenAiService {
                 try {
                   const buffer = Buffer.from(img.b64_json, 'base64');
                   const fileKey = `images/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
-                  const url = await this.s3Helpers.uploadFile(buffer, fileKey, 'image/png');
+                  const url = await this.s3Helpers.uploadFile(
+                    buffer,
+                    fileKey,
+                    'image/png',
+                  );
                   this.logger.log(`成功上传编辑后的图像到S3: ${url}`);
-                  
+
                   return {
                     url: url,
                     revised_prompt: img.revised_prompt || params.prompt,

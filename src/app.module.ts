@@ -13,6 +13,7 @@ import { BflAiModule } from './modules/bfl-ai/bfl-ai.module';
 import { GeminiAiModule } from './modules/gemini-ai/gemini-ai.module';
 import { ByteArkModule } from './modules/byte-ark/byte-ark.module';
 import { OpenAiModule } from './modules/openai/openai.module';
+import { GoogleSearchModule } from './modules/google-search/google-search.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { OpenAiModule } from './modules/openai/openai.module';
     GeminiAiModule,
     ByteArkModule,
     OpenAiModule,
+    GoogleSearchModule,
   ],
   controllers: [AppController],
   providers: [
