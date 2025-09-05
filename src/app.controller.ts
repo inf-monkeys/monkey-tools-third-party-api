@@ -59,7 +59,6 @@ export class AppController {
           type: CredentialAuthType.AKSK,
           displayName: '即梦',
           logo: '',
-          // @ts-expect-error - properties property not defined in type
           properties: [
             {
               displayName: 'API Key',
@@ -74,7 +73,6 @@ export class AppController {
           type: CredentialAuthType.AKSK,
           displayName: 'Tripo API',
           logo: '',
-          // @ts-expect-error - properties property not defined in type
           properties: [
             {
               displayName: 'API Key',
@@ -89,7 +87,6 @@ export class AppController {
           type: CredentialAuthType.AKSK,
           displayName: 'BFL API',
           logo: '',
-          // @ts-expect-error - properties property not defined in type
           properties: [
             {
               displayName: 'API Key',
