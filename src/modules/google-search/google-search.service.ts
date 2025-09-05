@@ -48,45 +48,49 @@ export class GoogleSearchService {
       }
 
       const {
-        q,
-        gl = 'us',
-        hl = 'en',
-        type = 'search',
-        num,
+        query,
+        country = 'us',
+        language = 'en',
+        searchType = 'search',
+        resultCount = 10,
       } = inputData.inputs;
 
       const payload: any = {
-        q,
-        gl,
-        hl,
+        q: query,
+        gl: country,
+        hl: language,
       };
 
-      if (num) {
-        payload.num = num;
+      if (resultCount && resultCount !== 10) {
+        payload.num = resultCount;
       }
 
       this.logger.log('Sending request to Google Search API via Serper');
 
-      console.log('API URL:', `${this.baseUrl}/${type}`);
+      console.log('API URL:', `${this.baseUrl}/${searchType}`);
       console.log('API Request Headers:', {
         'X-API-KEY': `${apiKey.substring(0, 10)}...`,
         'Content-Type': 'application/json',
       });
       console.log('API Request Payload:', JSON.stringify(payload, null, 2));
 
-      const response = await axios.post(`${this.baseUrl}/${type}`, payload, {
-        headers: {
-          'X-API-KEY': apiKey,
-          'Content-Type': 'application/json',
+      const response = await axios.post(
+        `${this.baseUrl}/${searchType}`,
+        payload,
+        {
+          headers: {
+            'X-API-KEY': apiKey,
+            'Content-Type': 'application/json',
+          },
+          proxy: config.proxy?.url
+            ? {
+                host: new URL(config.proxy.url).hostname,
+                port: parseInt(new URL(config.proxy.url).port),
+                protocol: new URL(config.proxy.url).protocol.slice(0, -1),
+              }
+            : undefined,
         },
-        proxy: config.proxy?.url
-          ? {
-              host: new URL(config.proxy.url).hostname,
-              port: parseInt(new URL(config.proxy.url).port),
-              protocol: new URL(config.proxy.url).protocol.slice(0, -1),
-            }
-          : undefined,
-      });
+      );
 
       const output = await processContentUrls(response.data);
 

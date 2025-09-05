@@ -122,7 +122,8 @@ export const config: Config = {
     apiKey: readConfig('openai.apiKey'),
   },
   googleSearch: {
-    apiKey: readConfig('googleSearch.apiKey') || process.env.GOOGLE_SEARCH_API_KEY,
+    apiKey:
+      readConfig('googleSearch.apiKey') || process.env.GOOGLE_SEARCH_API_KEY,
   },
 };
 

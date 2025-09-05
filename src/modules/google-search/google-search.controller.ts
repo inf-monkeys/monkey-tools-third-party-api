@@ -52,15 +52,17 @@ export class GoogleSearchController {
         'en-US': 'Search Parameters',
       },
       default: {
-        q: '',
-        gl: 'us',
-        hl: 'en',
-        type: 'search',
-        num: 10,
+        query: '',
+        searchType: 'search',
+        country: 'us',
+        language: 'en',
+        resultCount: 10,
       },
       description: {
-        'zh-CN': '请提供搜索所需的参数',
-        'en-US': 'Please provide the required search parameters',
+        'zh-CN':
+          '请提供搜索所需的参数。query: 搜索关键词(必填), searchType: 搜索类型(search/shopping/images/news), country: 国家代码(如us/cn), language: 语言代码(如en/zh), resultCount: 返回结果数量(1-100)',
+        'en-US':
+          'Please provide search parameters. query: search keywords(required), searchType: search type(search/shopping/images/news), country: country code(us/cn), language: language code(en/zh), resultCount: number of results(1-100)',
       },
     },
   ])

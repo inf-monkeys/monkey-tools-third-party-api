@@ -160,6 +160,26 @@ export class AppController {
             },
           ],
         },
+        {
+          name: 'google-search',
+          type: CredentialAuthType.AKSK,
+          displayName: '谷歌搜索 (Serper)',
+          // @ts-expect-error - iconUrl property not defined in type
+          iconUrl: 'https://google.serper.dev/favicon.ico',
+          properties: [
+            {
+              displayName: '从 [Serper](https://serper.dev) 获取你的 API Key。',
+              type: 'notice',
+              name: 'docs',
+            },
+            {
+              displayName: 'API Key',
+              type: 'string',
+              name: 'api_key',
+              required: true,
+            },
+          ],
+        },
       ],
     };
   }
