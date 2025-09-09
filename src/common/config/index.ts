@@ -61,6 +61,10 @@ export interface GoogleSearchConfig {
   apiKey?: string;
 }
 
+export interface RunwayConfig {
+  apiKey?: string;
+}
+
 export interface Config {
   server: ServerConfig;
   s3?: S3Config;
@@ -74,6 +78,7 @@ export interface Config {
   byteArk: ByteArkConfig;
   openai: OpenAiConfig;
   googleSearch: GoogleSearchConfig;
+  runway: RunwayConfig;
 }
 
 const port = readConfig('server.port', 3000);
@@ -124,6 +129,9 @@ export const config: Config = {
   googleSearch: {
     apiKey:
       readConfig('googleSearch.apiKey') || process.env.GOOGLE_SEARCH_API_KEY,
+  },
+  runway: {
+    apiKey: readConfig('runway.apiKey') || process.env.RUNWAY_API_KEY,
   },
 };
 

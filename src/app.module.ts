@@ -14,6 +14,7 @@ import { GeminiAiModule } from './modules/gemini-ai/gemini-ai.module';
 import { ByteArkModule } from './modules/byte-ark/byte-ark.module';
 import { OpenAiModule } from './modules/openai/openai.module';
 import { GoogleSearchModule } from './modules/google-search/google-search.module';
+import { RunwayModule } from './modules/runway/runway.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { GoogleSearchModule } from './modules/google-search/google-search.module
     ByteArkModule,
     OpenAiModule,
     GoogleSearchModule,
+    RunwayModule,
   ],
   controllers: [AppController],
   providers: [
