@@ -262,10 +262,6 @@ export class GeminiAiController {
     if (body.input && typeof body.input === 'object') {
       const { input, ...restBody } = body;
       processedBody = { ...restBody, ...input };
-      console.log(
-        '处理 Gemini 2.5 Flash input 对象后的请求体：',
-        JSON.stringify(processedBody, null, 2),
-      );
     }
 
     // 固定使用 gemini-2.5-flash-image-preview 模型（官方库）
