@@ -97,7 +97,18 @@ export class GeminiAiService {
   getApiKey(credential: any): string {
     try {
       this.logger.log(`处理凭证类型: ${typeof credential}`);
-      this.logger.log(`凭证内容: ${JSON.stringify(credential, null, 2)}`);
+
+      // 安全地记录凭证结构（不暴露敏感数据）
+      if (credential && typeof credential === 'object') {
+        const safeCredential = {
+          type: credential.type,
+          hasApiKey: !!credential.apiKey,
+          hasApiKeyField: !!credential.api_key,
+          hasEncryptedData: !!credential.encryptedData,
+          id: credential.id,
+        };
+        this.logger.log(`凭证结构: ${JSON.stringify(safeCredential, null, 2)}`);
+      }
 
       // 如果凭证是字符串，直接返回
       if (typeof credential === 'string') {
@@ -121,9 +132,16 @@ export class GeminiAiService {
         if (credential.encryptedData) {
           try {
             const credentialData = JSON.parse(credential.encryptedData);
+            // 安全地记录解析结果结构
+            const safeData = {
+              hasApiKey: !!credentialData.apiKey,
+              hasApiKeyField: !!credentialData.api_key,
+              displayName: credentialData.displayName,
+            };
             this.logger.log(
-              `解析 encryptedData: ${JSON.stringify(credentialData, null, 2)}`,
+              `解析 encryptedData 结构: ${JSON.stringify(safeData, null, 2)}`,
             );
+
             if (credentialData.apiKey) {
               this.logger.log('使用解析后的 apiKey');
               return credentialData.apiKey;
