@@ -96,65 +96,26 @@ export class GeminiAiService {
    */
   getApiKey(credential: any): string {
     try {
-      this.logger.log(`处理凭证类型: ${typeof credential}`);
-
-      // 安全地记录凭证结构（不暴露敏感数据）
-      if (credential && typeof credential === 'object') {
-        const safeCredential = {
-          type: credential.type,
-          hasApiKey: !!credential.apiKey,
-          hasApiKeyField: !!credential.api_key,
-          hasEncryptedData: !!credential.encryptedData,
-          id: credential.id,
-        };
-        this.logger.log(`凭证结构: ${JSON.stringify(safeCredential, null, 2)}`);
-      }
-
       // 如果凭证是字符串，直接返回
       if (typeof credential === 'string') {
-        this.logger.log('使用字符串凭证');
         return credential;
       }
 
       // 如果凭证是对象
       if (credential && typeof credential === 'object') {
         // 如果有 apiKey 或 api_key 属性
-        if (credential.apiKey) {
-          this.logger.log('使用凭证对象的 apiKey');
-          return credential.apiKey;
-        }
-        if (credential.api_key) {
-          this.logger.log('使用凭证对象的 api_key');
-          return credential.api_key;
-        }
+        if (credential.apiKey) return credential.apiKey;
+        if (credential.api_key) return credential.api_key;
 
         // 尝试解析 encryptedData
         if (credential.encryptedData) {
           try {
             const credentialData = JSON.parse(credential.encryptedData);
-            // 安全地记录解析结果结构
-            const safeData = {
-              hasApiKey: !!credentialData.apiKey,
-              hasApiKeyField: !!credentialData.api_key,
-              displayName: credentialData.displayName,
-            };
-            this.logger.log(
-              `解析 encryptedData 结构: ${JSON.stringify(safeData, null, 2)}`,
-            );
-
-            if (credentialData.apiKey) {
-              this.logger.log('使用解析后的 apiKey');
-              return credentialData.apiKey;
-            }
-            if (credentialData.api_key) {
-              this.logger.log('使用解析后的 api_key');
-              return credentialData.api_key;
-            }
+            if (credentialData.apiKey) return credentialData.apiKey;
+            if (credentialData.api_key) return credentialData.api_key;
           } catch (e) {
-            this.logger.warn(`解析 encryptedData 失败: ${e.message}`);
             // 如果解析失败，尝试直接使用 encryptedData
             if (typeof credential.encryptedData === 'string') {
-              this.logger.log('直接使用 encryptedData 作为 API 密钥');
               return credential.encryptedData;
             }
           }
@@ -163,7 +124,6 @@ export class GeminiAiService {
 
       // 使用配置中的 API 密钥
       if (config.gemini && config.gemini.apiKey) {
-        this.logger.log('使用配置文件中的 API 密钥');
         return config.gemini.apiKey;
       }
 
