@@ -96,26 +96,47 @@ export class GeminiAiService {
    */
   getApiKey(credential: any): string {
     try {
+      this.logger.log(`处理凭证类型: ${typeof credential}`);
+      this.logger.log(`凭证内容: ${JSON.stringify(credential, null, 2)}`);
+
       // 如果凭证是字符串，直接返回
       if (typeof credential === 'string') {
+        this.logger.log('使用字符串凭证');
         return credential;
       }
 
       // 如果凭证是对象
       if (credential && typeof credential === 'object') {
         // 如果有 apiKey 或 api_key 属性
-        if (credential.apiKey) return credential.apiKey;
-        if (credential.api_key) return credential.api_key;
+        if (credential.apiKey) {
+          this.logger.log('使用凭证对象的 apiKey');
+          return credential.apiKey;
+        }
+        if (credential.api_key) {
+          this.logger.log('使用凭证对象的 api_key');
+          return credential.api_key;
+        }
 
         // 尝试解析 encryptedData
         if (credential.encryptedData) {
           try {
             const credentialData = JSON.parse(credential.encryptedData);
-            if (credentialData.apiKey) return credentialData.apiKey;
-            if (credentialData.api_key) return credentialData.api_key;
+            this.logger.log(
+              `解析 encryptedData: ${JSON.stringify(credentialData, null, 2)}`,
+            );
+            if (credentialData.apiKey) {
+              this.logger.log('使用解析后的 apiKey');
+              return credentialData.apiKey;
+            }
+            if (credentialData.api_key) {
+              this.logger.log('使用解析后的 api_key');
+              return credentialData.api_key;
+            }
           } catch (e) {
+            this.logger.warn(`解析 encryptedData 失败: ${e.message}`);
             // 如果解析失败，尝试直接使用 encryptedData
             if (typeof credential.encryptedData === 'string') {
+              this.logger.log('直接使用 encryptedData 作为 API 密钥');
               return credential.encryptedData;
             }
           }
@@ -124,6 +145,7 @@ export class GeminiAiService {
 
       // 使用配置中的 API 密钥
       if (config.gemini && config.gemini.apiKey) {
+        this.logger.log('使用配置文件中的 API 密钥');
         return config.gemini.apiKey;
       }
 
@@ -309,6 +331,16 @@ export class GeminiAiService {
 
       this.logger.log(`使用官方库调用 ${model} 进行图像生成`);
 
+      // 设置代理（如果配置了）
+      if (config.proxy && config.proxy.enabled && config.proxy.url) {
+        const dispatcher = new ProxyAgent({
+          uri: new URL(config.proxy.url).toString(),
+        });
+
+        setGlobalDispatcher(dispatcher);
+        this.logger.log(`已配置代理: ${config.proxy.url}`);
+      }
+
       // 创建 GoogleGenAI 客户端
       const client = new GoogleGenAI({ apiKey });
 
@@ -399,6 +431,13 @@ export class GeminiAiService {
       };
     } catch (error) {
       this.logger.error(`官方库图像生成失败: ${error.message}`);
+      this.logger.error(`错误详情: ${JSON.stringify(error, null, 2)}`);
+      if (error.code) {
+        this.logger.error(`错误代码: ${error.code}`);
+      }
+      if (error.status) {
+        this.logger.error(`HTTP状态码: ${error.status}`);
+      }
       throw new Error(`图像生成失败: ${error.message}`);
     }
   }
