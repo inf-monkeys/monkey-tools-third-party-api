@@ -5,6 +5,7 @@ import { setGlobalDispatcher, ProxyAgent } from 'undici';
 import { S3Helpers } from '../../common/s3';
 import { config } from '../../common/config';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { GoogleGenAI } from '@google/genai';
 
 @Injectable()
 export class GeminiAiService {
@@ -294,6 +295,115 @@ export class GeminiAiService {
   }
 
   /**
+   * 使用官方 @google/genai 库执行图像生成请求
+   * @param params 请求参数
+   * @param model 模型名称
+   * @returns 请求结果
+   */
+  async executeImageGenerationRequest(
+    params: any,
+    model: string = 'gemini-2.5-flash-image-preview',
+  ): Promise<any> {
+    try {
+      const apiKey = this.getApiKey(params.credential);
+
+      this.logger.log(`使用官方库调用 ${model} 进行图像生成`);
+
+      // 创建 GoogleGenAI 客户端
+      const client = new GoogleGenAI({ apiKey });
+
+      // 准备内容数组
+      const contents: any[] = [];
+
+      // 添加文本提示
+      if (params.prompt) {
+        contents.push(params.prompt);
+      }
+
+      // 添加输入图像（如果有）
+      if (params.input_image) {
+        const processedImage = await this.processInputImage(params.input_image);
+        // 对于 genai 库，需要将图像转换为正确的格式
+        contents.push({
+          inlineData: {
+            mimeType: 'image/png',
+            data: processedImage,
+          },
+        });
+      }
+
+      this.logger.log('发送请求到 Google Gemini API (官方库)...');
+
+      const response = await client.models.generateContent({
+        model: model,
+        contents: contents,
+      });
+
+      this.logger.log('收到 Google Gemini API 响应 (官方库)');
+
+      const images = [];
+      const textParts = [];
+
+      // 处理响应
+      if (response.candidates && response.candidates.length > 0) {
+        for (const candidate of response.candidates) {
+          if (candidate.content && candidate.content.parts) {
+            for (const part of candidate.content.parts) {
+              if (part.text) {
+                this.logger.log(
+                  `收到文本响应: ${part.text.substring(0, 50)}...`,
+                );
+                textParts.push(part.text);
+              } else if (part.inlineData) {
+                this.logger.log('收到图像响应');
+
+                // 检查 S3 是否已启用
+                if (this.s3Enabled && this.s3Helpers) {
+                  try {
+                    // 上传图像到 S3
+                    const imageUrl = await this.uploadBase64ImageToS3(
+                      part.inlineData.data,
+                      part.inlineData.mimeType || 'image/png',
+                    );
+
+                    images.push({ url: imageUrl });
+                  } catch (uploadError) {
+                    this.logger.error(
+                      `上传图像到 S3 失败: ${uploadError.message}`,
+                    );
+                    throw new Error(
+                      `上传图像到 S3 失败: ${uploadError.message}`,
+                    );
+                  }
+                } else {
+                  this.logger.error('S3 未启用，无法上传图像');
+                  throw new Error(
+                    'S3 未启用或配置不正确，请配置 S3 存储后再尝试',
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 生成请求ID
+      const requestId = Date.now().toString();
+
+      // 返回请求结果
+      return {
+        requestId: requestId,
+        status: 'completed',
+        images: images,
+        text: textParts.length > 0 ? textParts.join('\n') : '',
+      };
+    } catch (error) {
+      this.logger.error(`官方库图像生成失败: ${error.message}`);
+      throw new Error(`图像生成失败: ${error.message}`);
+    }
+  }
+
+  /**
    * 执行请求
    * @param params 请求参数
    * @returns 请求结果
@@ -304,6 +414,16 @@ export class GeminiAiService {
     baseUrl?: string,
   ): Promise<any> {
     try {
+      // 如果是图像生成模型，使用官方库
+      if (
+        model &&
+        (model.includes('image') || model === 'gemini-2.5-flash-image-preview')
+      ) {
+        const result = await this.executeImageGenerationRequest(params, model);
+        return this.formatImageResults(result);
+      }
+
+      // 否则使用原有的 ai-sdk 方式
       const result = await this.submitRequest(params, model, baseUrl);
       return this.formatImageResults(result);
     } catch (error) {
