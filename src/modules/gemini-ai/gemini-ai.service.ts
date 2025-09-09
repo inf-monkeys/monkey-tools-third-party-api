@@ -147,10 +147,18 @@ export class GeminiAiService {
     try {
       const apiKey = this.getApiKey(params.credential);
 
-      // 处理输入图像（如果有）
-      let processedInputImage = null;
+      // 处理输入图像（支持单个或多个图像）
+      const processedInputImages = [];
       if (params.input_image) {
-        processedInputImage = await this.processInputImage(params.input_image);
+        // 支持数组和单个图像
+        const images = Array.isArray(params.input_image)
+          ? params.input_image
+          : [params.input_image];
+
+        for (const image of images) {
+          const processedImage = await this.processInputImage(image);
+          processedInputImages.push(processedImage);
+        }
       }
 
       // 创建 Google GenAI 客户端
@@ -179,10 +187,12 @@ export class GeminiAiService {
         }
 
         // 添加输入图像（如果有）
-        if (processedInputImage) {
-          contents.push({
-            type: 'file',
-            data: processedInputImage,
+        if (processedInputImages.length > 0) {
+          processedInputImages.forEach((processedImage) => {
+            contents.push({
+              type: 'file',
+              data: processedImage,
+            });
           });
         }
 
@@ -267,8 +277,18 @@ export class GeminiAiService {
    * @returns 格式化后的结果
    */
   formatImageResults(result: any): any {
+    // 安全检查：确保 result 存在
+    if (!result) {
+      return {
+        requestId: Date.now().toString(),
+        status: 'completed',
+        images: [],
+        text: '',
+      };
+    }
+
     // 如果结果中有 images 属性且是数组，则提取图片 URL
-    if (result && result.images && Array.isArray(result.images)) {
+    if (result.images && Array.isArray(result.images)) {
       // 提取所有图片 URL
       const imageUrls = result.images
         .map((img) => {
@@ -291,7 +311,11 @@ export class GeminiAiService {
       };
     }
 
-    return result;
+    // 如果没有 images 数组，确保返回空数组
+    return {
+      ...result,
+      images: [],
+    };
   }
 
   /**
@@ -330,16 +354,23 @@ export class GeminiAiService {
         contents.push(params.prompt);
       }
 
-      // 添加输入图像（如果有）
+      // 添加输入图像（支持单个或多个图像）
       if (params.input_image) {
-        const processedImage = await this.processInputImage(params.input_image);
-        // 对于 genai 库，需要将图像转换为正确的格式
-        contents.push({
-          inlineData: {
-            mimeType: 'image/png',
-            data: processedImage,
-          },
-        });
+        // 支持数组和单个图像
+        const images = Array.isArray(params.input_image)
+          ? params.input_image
+          : [params.input_image];
+
+        for (const image of images) {
+          const processedImage = await this.processInputImage(image);
+          // 对于 genai 库，需要将图像转换为正确的格式
+          contents.push({
+            inlineData: {
+              mimeType: 'image/png',
+              data: processedImage,
+            },
+          });
+        }
       }
 
       this.logger.log('发送请求到 Google Gemini API (官方库)...');
