@@ -9,25 +9,36 @@ const s3Client = new S3Helpers();
  * 从文本中提取URL列表
  */
 function extractUrls(text: string): string[] {
-  // Markdown图片语法匹配
-  const markdownImageRegex = /!\[.*?\]\((.*?)\)/g;
-  // 普通URL匹配
-  const urlRegex = /(https?:\/\/[^\s<>"']*)/g;
+  try {
+    logger.info(
+      'extractUrls 被调用，输入文本长度:',
+      text?.length || 'undefined',
+    );
 
-  const urls = new Set<string>();
+    // Markdown图片语法匹配
+    const markdownImageRegex = /!\[.*?\]\((.*?)\)/g;
+    // 普通URL匹配
+    const urlRegex = /(https?:\/\/[^\s<>"']*)/g;
 
-  // 提取Markdown图片URL
-  let match;
-  while ((match = markdownImageRegex.exec(text)) !== null) {
-    urls.add(match[1]);
+    const urls = new Set<string>();
+
+    // 提取Markdown图片URL
+    let match;
+    while ((match = markdownImageRegex.exec(text)) !== null) {
+      urls.add(match[1]);
+    }
+
+    // 提取普通URL
+    while ((match = urlRegex.exec(text)) !== null) {
+      urls.add(match[0]);
+    }
+
+    logger.info('extractUrls 找到的URL数量:', urls?.size || 0);
+    return urls ? Array.from(urls) : [];
+  } catch (error) {
+    logger.error('extractUrls 执行错误:', error.message);
+    return [];
   }
-
-  // 提取普通URL
-  while ((match = urlRegex.exec(text)) !== null) {
-    urls.add(match[0]);
-  }
-
-  return Array.from(urls);
 }
 
 /**
@@ -129,46 +140,62 @@ async function uploadToS3(url: string): Promise<string> {
  * 处理内容中的URL,将文件上传至S3并替换URL
  */
 export async function processContentUrls(content: any): Promise<any> {
-  if (!s3Client || !config.s3) {
+  try {
+    logger.info('processContentUrls 被调用，内容类型:', typeof content);
+
+    if (!s3Client || !config.s3) {
+      logger.info('S3 未配置，直接返回内容');
+      return content;
+    }
+
+    logger.info(`S3 已配置，开始处理内容`);
+
+    // 如果是字符串类型
+    if (typeof content === 'string') {
+      let processedContent = content;
+      const urls = extractUrls(content);
+
+      for (const url of urls) {
+        if (await isFileUrl(url)) {
+          const newUrl = await uploadToS3(url);
+          processedContent = processedContent.replace(url, newUrl);
+        }
+      }
+
+      return processedContent;
+    }
+
+    // 如果是对象类型
+    if (typeof content === 'object' && content !== null) {
+      const processedContent = Array.isArray(content)
+        ? [...content]
+        : { ...content };
+
+      for (const key in processedContent) {
+        if (processedContent.hasOwnProperty(key)) {
+          if (typeof processedContent[key] === 'string') {
+            processedContent[key] = await processContentUrls(
+              processedContent[key],
+            );
+          } else if (
+            typeof processedContent[key] === 'object' &&
+            processedContent[key] !== null
+          ) {
+            processedContent[key] = await processContentUrls(
+              processedContent[key],
+            );
+          }
+        }
+      }
+
+      return processedContent;
+    }
+
+    logger.info('processContentUrls 完成，返回内容');
     return content;
+  } catch (error) {
+    logger.error('processContentUrls 执行错误:', error.message);
+    logger.error('错误堆栈:', error.stack);
+    throw error;
   }
-
-  logger.info(`S3 已配置，开始处理内容`);
-
-  // 如果是字符串类型
-  if (typeof content === 'string') {
-    let processedContent = content;
-    const urls = extractUrls(content);
-
-    for (const url of urls) {
-      if (await isFileUrl(url)) {
-        const newUrl = await uploadToS3(url);
-        processedContent = processedContent.replace(url, newUrl);
-      }
-    }
-
-    return processedContent;
-  }
-
-  // 如果是对象类型
-  if (typeof content === 'object' && content !== null) {
-    const processedContent = Array.isArray(content)
-      ? [...content]
-      : { ...content };
-
-    for (const key in processedContent) {
-      if (typeof processedContent[key] === 'string') {
-        processedContent[key] = await processContentUrls(processedContent[key]);
-      } else if (
-        typeof processedContent[key] === 'object' &&
-        processedContent[key] !== null
-      ) {
-        processedContent[key] = await processContentUrls(processedContent[key]);
-      }
-    }
-
-    return processedContent;
-  }
-
-  return content;
 }

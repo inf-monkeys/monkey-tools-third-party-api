@@ -79,75 +79,89 @@ export class RunwayService {
    * - 将 references 统一为含 { type, uri } 的对象数组
    */
   private normalizePayload(raw: any, topLevel?: any): any {
-    const base: Record<string, any> = { ...(raw || {}) };
+    try {
+      this.logger.log(
+        'normalizePayload 输入参数:',
+        JSON.stringify({ raw, topLevel }, null, 2),
+      );
+      const base: Record<string, any> = { ...(raw || {}) };
 
-    // 合并顶层常用参数（仅当提供时覆盖）
-    if (topLevel && typeof topLevel === 'object') {
-      if (topLevel.promptText !== undefined)
-        base.promptText = topLevel.promptText;
-      if (topLevel.promptImage !== undefined)
-        base.promptImage = topLevel.promptImage;
-      if (topLevel.videoUri !== undefined) base.videoUri = topLevel.videoUri;
-      if (topLevel.model !== undefined) base.model = topLevel.model;
-      if (topLevel.ratio !== undefined) base.ratio = topLevel.ratio;
-      if (topLevel.seed !== undefined) base.seed = topLevel.seed;
-    }
-
-    // 统一 referenceImages
-    if (base.referenceImages !== undefined) {
-      if (
-        !Array.isArray(base.referenceImages) ||
-        base.referenceImages.length === 0
-      ) {
-        delete base.referenceImages;
-      } else {
-        // 确保 referenceImages 是数组且不为null/undefined
-        const images = Array.isArray(base.referenceImages)
-          ? base.referenceImages
-          : [];
-        base.referenceImages = images
-          .map((item: any) => {
-            if (!item) return null;
-            if (typeof item === 'string') return { uri: item };
-            if (typeof item === 'object' && item.uri) {
-              return item.tag
-                ? { uri: item.uri, tag: item.tag }
-                : { uri: item.uri };
-            }
-            return null;
-          })
-          .filter(Boolean)
-          .slice(0, 3);
-        if (base.referenceImages.length === 0) delete base.referenceImages;
+      // 合并顶层常用参数（仅当提供时覆盖）
+      if (topLevel && typeof topLevel === 'object') {
+        if (topLevel.promptText !== undefined)
+          base.promptText = topLevel.promptText;
+        if (topLevel.promptImage !== undefined)
+          base.promptImage = topLevel.promptImage;
+        if (topLevel.videoUri !== undefined) base.videoUri = topLevel.videoUri;
+        if (topLevel.model !== undefined) base.model = topLevel.model;
+        if (topLevel.ratio !== undefined) base.ratio = topLevel.ratio;
+        if (topLevel.seed !== undefined) base.seed = topLevel.seed;
       }
-    }
 
-    // 统一 references
-    if (base.references !== undefined) {
-      if (!Array.isArray(base.references) || base.references.length === 0) {
-        delete base.references;
-      } else {
-        // 确保 references 是数组且不为null/undefined
-        const refs = Array.isArray(base.references) ? base.references : [];
-        base.references = refs
-          .map((item: any) =>
-            item && typeof item === 'object' && item.type && item.uri
-              ? item
-              : null,
-          )
-          .filter(Boolean);
-        if (base.references.length === 0) delete base.references;
+      // 统一 referenceImages
+      if (base.referenceImages !== undefined) {
+        if (
+          !Array.isArray(base.referenceImages) ||
+          base.referenceImages.length === 0
+        ) {
+          delete base.referenceImages;
+        } else {
+          // 确保 referenceImages 是数组且不为null/undefined
+          const images = Array.isArray(base.referenceImages)
+            ? base.referenceImages
+            : [];
+          base.referenceImages = images
+            .map((item: any) => {
+              if (!item) return null;
+              if (typeof item === 'string') return { uri: item };
+              if (typeof item === 'object' && item.uri) {
+                return item.tag
+                  ? { uri: item.uri, tag: item.tag }
+                  : { uri: item.uri };
+              }
+              return null;
+            })
+            .filter(Boolean)
+            .slice(0, 3);
+          if (base.referenceImages.length === 0) delete base.referenceImages;
+        }
       }
-    }
 
-    // 清理 null/undefined
-    Object.keys(base).forEach((key) => {
-      if (base[key] === null || base[key] === undefined) {
-        delete base[key];
+      // 统一 references
+      if (base.references !== undefined) {
+        if (!Array.isArray(base.references) || base.references.length === 0) {
+          delete base.references;
+        } else {
+          // 确保 references 是数组且不为null/undefined
+          const refs = Array.isArray(base.references) ? base.references : [];
+          base.references = refs
+            .map((item: any) =>
+              item && typeof item === 'object' && item.type && item.uri
+                ? item
+                : null,
+            )
+            .filter(Boolean);
+          if (base.references.length === 0) delete base.references;
+        }
       }
-    });
 
-    return base;
+      // 清理 null/undefined
+      Object.keys(base).forEach((key) => {
+        if (base[key] === null || base[key] === undefined) {
+          delete base[key];
+        }
+      });
+
+      this.logger.log(
+        'normalizePayload 输出结果:',
+        JSON.stringify(base, null, 2),
+      );
+      return base;
+    } catch (error) {
+      this.logger.error('normalizePayload 执行错误:', error.message);
+      this.logger.error('错误堆栈:', error.stack);
+      throw error;
+    }
   }
 
   /**
@@ -492,8 +506,10 @@ export class RunwayService {
    */
   async callApi(inputData: RunwayRequestDto) {
     try {
+      this.logger.log('=== Runway API callApi 开始 ===');
       this.logger.log('输入数据:', JSON.stringify(inputData, null, 2));
 
+      this.logger.log('开始获取API密钥...');
       const apiKey = this.getApiKey(inputData.credential);
       if (!apiKey) {
         throw new Error('API Key is empty');
@@ -502,7 +518,12 @@ export class RunwayService {
       this.logger.log('成功获取API密钥');
 
       // 构建并规范化 payload（合并顶层常用参数并清理空值/空数组，修正引用字段结构）
+      this.logger.log('调用 normalizePayload 前...');
       const payload = this.normalizePayload(inputData.inputs, inputData);
+      this.logger.log(
+        '调用 normalizePayload 后，payload:',
+        JSON.stringify(payload, null, 2),
+      );
 
       // 根据模型类型选择合适的端点
       let endpoint = '';
