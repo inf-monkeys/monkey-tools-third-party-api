@@ -30,36 +30,44 @@ export class RunwayService {
    * @returns API 密钥
    */
   private getApiKey(credential?: any): string {
-    if (credential) {
-      // 直接检查 credential 对象中是否有 apiKey
-      if (credential.apiKey) {
-        return credential.apiKey;
+    try {
+      // 如果凭证是字符串，直接返回
+      if (typeof credential === 'string') {
+        return credential;
       }
 
-      // 尝试使用 encryptedData 作为 API 密钥（如果存在）
-      if (credential.encryptedData) {
-        try {
-          // 首先尝试解析为 JSON
+      // 如果凭证是对象
+      if (credential && typeof credential === 'object') {
+        // 如果有 apiKey 或 api_key 属性
+        if (credential.apiKey) return credential.apiKey;
+        if (credential.api_key) return credential.api_key;
+
+        // 尝试解析 encryptedData
+        if (credential.encryptedData) {
           try {
+            // 首先尝试解析为 JSON
             const credentialData = JSON.parse(credential.encryptedData);
-            if (credentialData.api_key || credentialData.apiKey) {
-              return credentialData.api_key || credentialData.apiKey;
+            if (credentialData.apiKey) return credentialData.apiKey;
+            if (credentialData.api_key) return credentialData.api_key;
+          } catch (e) {
+            // 如果解析失败，尝试直接使用 encryptedData
+            if (typeof credential.encryptedData === 'string') {
+              return credential.encryptedData;
             }
-          } catch (jsonError) {
-            // 如果不是有效的 JSON，则直接使用 encryptedData 作为 API 密钥
-            return credential.encryptedData;
           }
-        } catch (error) {
-          this.logger.error('处理凭证数据失败:', error.message);
         }
       }
-    }
 
-    // 如果凭证中没有 API 密钥或处理失败，则使用配置中的 API 密钥
-    if (!this.apiKey) {
-      throw new Error('没有配置 Runway API Key，请联系管理员。');
+      // 使用配置中的 API 密钥
+      if (config.runway && config.runway.apiKey) {
+        return config.runway.apiKey;
+      }
+
+      throw new Error('未找到 Runway API 密钥');
+    } catch (error) {
+      this.logger.error(`获取 API 密钥失败: ${error.message}`);
+      throw new Error(`获取 API 密钥失败: ${error.message}`);
     }
-    return this.apiKey;
   }
 
   /**
