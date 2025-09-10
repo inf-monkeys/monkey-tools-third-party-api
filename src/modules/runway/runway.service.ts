@@ -101,7 +101,11 @@ export class RunwayService {
       ) {
         delete base.referenceImages;
       } else {
-        base.referenceImages = base.referenceImages
+        // 确保 referenceImages 是数组且不为null/undefined
+        const images = Array.isArray(base.referenceImages)
+          ? base.referenceImages
+          : [];
+        base.referenceImages = images
           .map((item: any) => {
             if (!item) return null;
             if (typeof item === 'string') return { uri: item };
@@ -123,7 +127,9 @@ export class RunwayService {
       if (!Array.isArray(base.references) || base.references.length === 0) {
         delete base.references;
       } else {
-        base.references = base.references
+        // 确保 references 是数组且不为null/undefined
+        const refs = Array.isArray(base.references) ? base.references : [];
+        base.references = refs
           .map((item: any) =>
             item && typeof item === 'object' && item.type && item.uri
               ? item
