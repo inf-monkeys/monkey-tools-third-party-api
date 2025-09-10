@@ -267,8 +267,11 @@ export const RunwayRequestSchema = z
 
     credential: z
       .object({
+        id: z.string().optional(),
         type: z.string(),
-        encryptedData: z.string(),
+        encryptedData: z.string().optional(),
+        apiKey: z.string().optional(),
+        api_key: z.string().optional(),
       })
       .optional()
       .describe('凭证信息'),
@@ -281,8 +284,11 @@ export class ImageToVideoRequestDto extends createZodDto(
     inputs: ImageToVideoParamsSchema,
     credential: z
       .object({
+        id: z.string().optional(),
         type: z.string(),
-        encryptedData: z.string(),
+        encryptedData: z.string().optional(),
+        apiKey: z.string().optional(),
+        api_key: z.string().optional(),
       })
       .optional(),
   }),
@@ -293,8 +299,11 @@ export class VideoToVideoRequestDto extends createZodDto(
     inputs: VideoToVideoParamsSchema,
     credential: z
       .object({
+        id: z.string().optional(),
         type: z.string(),
-        encryptedData: z.string(),
+        encryptedData: z.string().optional(),
+        apiKey: z.string().optional(),
+        api_key: z.string().optional(),
       })
       .optional(),
   }),
@@ -305,8 +314,11 @@ export class TextToImageRequestDto extends createZodDto(
     inputs: TextToImageParamsSchema,
     credential: z
       .object({
+        id: z.string().optional(),
         type: z.string(),
-        encryptedData: z.string(),
+        encryptedData: z.string().optional(),
+        apiKey: z.string().optional(),
+        api_key: z.string().optional(),
       })
       .optional(),
   }),
@@ -317,8 +329,11 @@ export class VideoUpscaleRequestDto extends createZodDto(
     inputs: VideoUpscaleParamsSchema,
     credential: z
       .object({
+        id: z.string().optional(),
         type: z.string(),
-        encryptedData: z.string(),
+        encryptedData: z.string().optional(),
+        apiKey: z.string().optional(),
+        api_key: z.string().optional(),
       })
       .optional(),
   }),
@@ -329,8 +344,11 @@ export class CharacterPerformanceRequestDto extends createZodDto(
     inputs: CharacterPerformanceParamsSchema,
     credential: z
       .object({
+        id: z.string().optional(),
         type: z.string(),
-        encryptedData: z.string(),
+        encryptedData: z.string().optional(),
+        apiKey: z.string().optional(),
+        api_key: z.string().optional(),
       })
       .optional(),
   }),

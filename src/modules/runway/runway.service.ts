@@ -104,8 +104,13 @@ export class RunwayService {
         this.logger.log(`任务 ${taskId} 状态: ${task.status}`);
 
         if (task.status === 'SUCCEEDED') {
+          this.logger.log(
+            `任务成功完成，返回数据结构:`,
+            JSON.stringify(task, null, 2),
+          );
           return task;
         } else if (task.status === 'FAILED') {
+          this.logger.error(`任务失败详情:`, JSON.stringify(task, null, 2));
           throw new Error(`任务失败: ${JSON.stringify(task)}`);
         }
 
@@ -407,10 +412,14 @@ export class RunwayService {
    */
   async callApi(inputData: RunwayRequestDto) {
     try {
+      this.logger.log('输入数据:', JSON.stringify(inputData, null, 2));
+
       const apiKey = this.getApiKey(inputData.credential);
       if (!apiKey) {
         throw new Error('API Key is empty');
       }
+
+      this.logger.log('成功获取API密钥');
 
       // 从 inputs 或顶层获取参数
       const inputs = inputData.inputs || {};
@@ -424,6 +433,19 @@ export class RunwayService {
         ...(inputData.ratio && { ratio: inputData.ratio }),
         ...(inputData.seed && { seed: inputData.seed }),
       };
+
+      // 清理payload中的undefined值和空数组
+      Object.keys(payload).forEach((key) => {
+        if (payload[key] === undefined || payload[key] === null) {
+          delete payload[key];
+        }
+        // 对于某些特定字段，如果是空数组也删除
+        if (Array.isArray(payload[key]) && payload[key].length === 0) {
+          if (['referenceImages', 'references'].includes(key)) {
+            delete payload[key];
+          }
+        }
+      });
 
       // 根据模型类型选择合适的端点
       let endpoint = '';
@@ -472,8 +494,24 @@ export class RunwayService {
       // 等待任务完成
       const completedTask = await this.waitForTask(taskId, apiKey);
 
-      // 处理输出 URL
-      const output = await processContentUrls(completedTask);
+      this.logger.log(
+        '完成的任务数据:',
+        JSON.stringify(completedTask, null, 2),
+      );
+
+      // 处理输出 URL - 添加安全检查
+      let output;
+      try {
+        output = await processContentUrls(completedTask);
+      } catch (processError) {
+        this.logger.error('处理输出URL时发生错误:', processError.message);
+        this.logger.error(
+          '原始任务数据:',
+          JSON.stringify(completedTask, null, 2),
+        );
+        // 如果处理失败，直接返回原始数据
+        output = completedTask;
+      }
 
       return {
         data: output,
