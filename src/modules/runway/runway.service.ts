@@ -71,6 +71,80 @@ export class RunwayService {
   }
 
   /**
+   * 规范化并清理 Runway 请求载荷
+   * - 合并顶层常用参数（可选）
+   * - 移除 null/undefined
+   * - 将空数组字段(referenceImages/references)删除
+   * - 将 referenceImages 统一为 { uri, tag? }[]，最多 3 个
+   * - 将 references 统一为含 { type, uri } 的对象数组
+   */
+  private normalizePayload(raw: any, topLevel?: any): any {
+    const base: Record<string, any> = { ...(raw || {}) };
+
+    // 合并顶层常用参数（仅当提供时覆盖）
+    if (topLevel && typeof topLevel === 'object') {
+      if (topLevel.promptText !== undefined)
+        base.promptText = topLevel.promptText;
+      if (topLevel.promptImage !== undefined)
+        base.promptImage = topLevel.promptImage;
+      if (topLevel.videoUri !== undefined) base.videoUri = topLevel.videoUri;
+      if (topLevel.model !== undefined) base.model = topLevel.model;
+      if (topLevel.ratio !== undefined) base.ratio = topLevel.ratio;
+      if (topLevel.seed !== undefined) base.seed = topLevel.seed;
+    }
+
+    // 统一 referenceImages
+    if (base.referenceImages !== undefined) {
+      if (
+        !Array.isArray(base.referenceImages) ||
+        base.referenceImages.length === 0
+      ) {
+        delete base.referenceImages;
+      } else {
+        base.referenceImages = base.referenceImages
+          .map((item: any) => {
+            if (!item) return null;
+            if (typeof item === 'string') return { uri: item };
+            if (typeof item === 'object' && item.uri) {
+              return item.tag
+                ? { uri: item.uri, tag: item.tag }
+                : { uri: item.uri };
+            }
+            return null;
+          })
+          .filter(Boolean)
+          .slice(0, 3);
+        if (base.referenceImages.length === 0) delete base.referenceImages;
+      }
+    }
+
+    // 统一 references
+    if (base.references !== undefined) {
+      if (!Array.isArray(base.references) || base.references.length === 0) {
+        delete base.references;
+      } else {
+        base.references = base.references
+          .map((item: any) =>
+            item && typeof item === 'object' && item.type && item.uri
+              ? item
+              : null,
+          )
+          .filter(Boolean);
+        if (base.references.length === 0) delete base.references;
+      }
+    }
+
+    // 清理 null/undefined
+    Object.keys(base).forEach((key) => {
+      if (base[key] === null || base[key] === undefined) {
+        delete base[key];
+      }
+    });
+
+    return base;
+  }
+
+  /**
    * 等待任务完成
    * @param taskId 任务 ID
    * @param apiKey API 密钥
@@ -138,7 +212,7 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = { ...inputData.inputs };
+      const payload = this.normalizePayload(inputData.inputs);
 
       this.logger.log('发送图像转视频请求到 Runway API');
       console.log('API Request Payload:', JSON.stringify(payload, null, 2));
@@ -193,7 +267,7 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = { ...inputData.inputs };
+      const payload = this.normalizePayload(inputData.inputs);
 
       this.logger.log('发送视频转视频请求到 Runway API');
       console.log('API Request Payload:', JSON.stringify(payload, null, 2));
@@ -248,7 +322,7 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = { ...inputData.inputs };
+      const payload = this.normalizePayload(inputData.inputs);
 
       this.logger.log('发送文本转图像请求到 Runway API');
       console.log('API Request Payload:', JSON.stringify(payload, null, 2));
@@ -303,7 +377,7 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = { ...inputData.inputs };
+      const payload = this.normalizePayload(inputData.inputs);
 
       this.logger.log('发送视频放大请求到 Runway API');
       console.log('API Request Payload:', JSON.stringify(payload, null, 2));
@@ -358,7 +432,7 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = { ...inputData.inputs };
+      const payload = this.normalizePayload(inputData.inputs);
 
       this.logger.log('发送角色表演控制请求到 Runway API');
       console.log('API Request Payload:', JSON.stringify(payload, null, 2));
@@ -421,31 +495,8 @@ export class RunwayService {
 
       this.logger.log('成功获取API密钥');
 
-      // 从 inputs 或顶层获取参数
-      const inputs = inputData.inputs || {};
-      const payload = {
-        ...inputs,
-        // 支持在顶层直接传递常用参数
-        ...(inputData.promptText && { promptText: inputData.promptText }),
-        ...(inputData.promptImage && { promptImage: inputData.promptImage }),
-        ...(inputData.videoUri && { videoUri: inputData.videoUri }),
-        ...(inputData.model && { model: inputData.model }),
-        ...(inputData.ratio && { ratio: inputData.ratio }),
-        ...(inputData.seed && { seed: inputData.seed }),
-      };
-
-      // 清理payload中的undefined值和空数组
-      Object.keys(payload).forEach((key) => {
-        if (payload[key] === undefined || payload[key] === null) {
-          delete payload[key];
-        }
-        // 对于某些特定字段，如果是空数组也删除
-        if (Array.isArray(payload[key]) && payload[key].length === 0) {
-          if (['referenceImages', 'references'].includes(key)) {
-            delete payload[key];
-          }
-        }
-      });
+      // 构建并规范化 payload（合并顶层常用参数并清理空值/空数组，修正引用字段结构）
+      const payload = this.normalizePayload(inputData.inputs, inputData);
 
       // 根据模型类型选择合适的端点
       let endpoint = '';
