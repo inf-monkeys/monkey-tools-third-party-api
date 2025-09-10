@@ -244,16 +244,9 @@ export const CharacterPerformanceParamsSchema = z.object({
 // 统一的 Runway 请求 Schema
 export const RunwayRequestSchema = z
   .object({
-    // 支持直接传递参数或通过 inputs 字段传递
+    // 简化inputs验证，避免复杂的union类型导致的map错误
     inputs: z
-      .union([
-        ImageToVideoParamsSchema,
-        VideoToVideoParamsSchema,
-        TextToImageParamsSchema,
-        VideoUpscaleParamsSchema,
-        CharacterPerformanceParamsSchema,
-        z.record(z.string(), z.any()), // 允许任意额外参数
-      ])
+      .record(z.string(), z.any()) // 直接允许任意参数
       .optional()
       .describe('输入参数'),
 

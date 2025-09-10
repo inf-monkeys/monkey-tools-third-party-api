@@ -76,6 +76,49 @@ export class GeminiAiService {
   }
 
   /**
+   * 将图片 URL 转换为 base64，并返回 MIME 类型
+   */
+  async imageUrlToBase64WithMime(
+    url: string,
+  ): Promise<{ data: string; mimeType: string }> {
+    try {
+      this.logger.log(`获取图片并检测 MIME: ${url}`);
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          responseType: 'arraybuffer',
+        }),
+      );
+      const contentType =
+        (response.headers?.['content-type'] || '').split(';')[0] ||
+        this.guessMimeFromUrl(url) ||
+        'image/jpeg';
+      const buffer = Buffer.from(response.data, 'binary');
+      const base64Image = buffer.toString('base64');
+      return { data: base64Image, mimeType: contentType };
+    } catch (error) {
+      this.logger.error(`获取图片失败: ${error.message}`);
+      throw new Error(`获取图片失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 简单根据 URL 后缀猜测图片 MIME
+   */
+  private guessMimeFromUrl(url: string): string | null {
+    try {
+      const lower = url.toLowerCase();
+      if (lower.endsWith('.png')) return 'image/png';
+      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg'))
+        return 'image/jpeg';
+      if (lower.endsWith('.webp')) return 'image/webp';
+      if (lower.endsWith('.gif')) return 'image/gif';
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * 检查字符串是否是 URL
    * @param str 要检查的字符串
    * @returns 是否是 URL
@@ -349,8 +392,19 @@ export class GeminiAiService {
       // 准备内容
       let contents: any;
 
+      // 统一收集输入图像（支持 input_image 和 input_images）
+      const allInputImages: string[] = [];
+      if (params.input_image) {
+        if (Array.isArray(params.input_image))
+          allInputImages.push(...params.input_image);
+        else allInputImages.push(params.input_image);
+      }
+      if (params.input_images && Array.isArray(params.input_images)) {
+        allInputImages.push(...params.input_images);
+      }
+
       // 如果只有文本提示，直接传字符串
-      if (params.prompt && !params.input_image) {
+      if (params.prompt && allInputImages.length === 0) {
         contents = params.prompt;
       } else {
         // 如果有图片或混合内容，使用数组格式
@@ -362,20 +416,36 @@ export class GeminiAiService {
         }
 
         // 添加输入图像（支持单个或多个图像）
-        if (params.input_image) {
-          // 支持数组和单个图像
-          const images = Array.isArray(params.input_image)
-            ? params.input_image
-            : [params.input_image];
-
-          for (const image of images) {
-            const processedImage = await this.processInputImage(image);
-            contentsArray.push({
-              inlineData: {
-                mimeType: 'image/png',
-                data: processedImage,
-              },
-            });
+        if (allInputImages.length > 0) {
+          for (const image of allInputImages) {
+            // 如果是 URL，带上正确的 MIME
+            if (this.isUrl(image)) {
+              const { data, mimeType } =
+                await this.imageUrlToBase64WithMime(image);
+              contentsArray.push({
+                inlineData: {
+                  mimeType: mimeType || 'image/jpeg',
+                  data: data,
+                },
+              });
+            } else {
+              // 处理 data URL
+              let mimeType = 'image/jpeg';
+              let base64Data = image;
+              if (image.startsWith('data:image/')) {
+                const match = image.match(/^data:(image\/[^;]+);base64,(.*)$/);
+                if (match) {
+                  mimeType = match[1];
+                  base64Data = match[2];
+                }
+              }
+              contentsArray.push({
+                inlineData: {
+                  mimeType,
+                  data: base64Data,
+                },
+              });
+            }
           }
         }
 
@@ -426,10 +496,10 @@ export class GeminiAiService {
                     );
                   }
                 } else {
-                  this.logger.error('S3 未启用，无法上传图像');
-                  throw new Error(
-                    'S3 未启用或配置不正确，请配置 S3 存储后再尝试',
-                  );
+                  // S3 未启用，直接返回 data URL（遵循构造器中的提示）
+                  const mime = part.inlineData.mimeType || 'image/png';
+                  const dataUrl = `data:${mime};base64,${part.inlineData.data}`;
+                  images.push(dataUrl);
                 }
               }
             }
