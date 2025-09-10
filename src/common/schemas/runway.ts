@@ -241,33 +241,25 @@ export const CharacterPerformanceParamsSchema = z.object({
     .describe('内容审核设置'),
 });
 
-// 统一的 Runway 请求 Schema
+// 统一的 Runway 请求 Schema - 进一步简化以避免验证问题
 export const RunwayRequestSchema = z
   .object({
-    // 简化inputs验证，避免复杂的union类型导致的map错误
+    // 完全放宽inputs验证
     inputs: z
-      .record(z.string(), z.any()) // 直接允许任意参数
+      .any() // 允许任意类型
       .optional()
       .describe('输入参数'),
 
-    // 也支持在顶层直接传递常用参数
-    promptText: z.string().optional(),
-    promptImage: z.union([z.string(), z.array(z.any())]).optional(),
-    videoUri: z.string().optional(),
-    model: z.string().optional(),
-    ratio: z.string().optional(),
-    seed: z.number().optional(),
+    // 顶层参数也完全放宽
+    promptText: z.any().optional(),
+    promptImage: z.any().optional(),
+    videoUri: z.any().optional(),
+    model: z.any().optional(),
+    ratio: z.any().optional(),
+    seed: z.any().optional(),
 
-    credential: z
-      .object({
-        id: z.string().optional(),
-        type: z.string(),
-        encryptedData: z.string().optional(),
-        apiKey: z.string().optional(),
-        api_key: z.string().optional(),
-      })
-      .optional()
-      .describe('凭证信息'),
+    // 凭证信息也放宽
+    credential: z.any().optional().describe('凭证信息'),
   })
   .passthrough();
 
