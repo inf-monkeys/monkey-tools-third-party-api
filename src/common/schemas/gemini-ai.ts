@@ -15,13 +15,16 @@ export const GeminiAiParamsSchema = z
       .union([
         z.string({ message: '输入图像必须是URL或Base64编码的字符串' }),
         z.array(z.string(), {
-          invalid_type_error: '输入图像必须是由URL或Base64字符串组成的数组',
+          message: '输入图像必须是由URL或Base64字符串组成的数组',
         }),
       ])
       .optional()
       .describe('输入图像（URL或Base64，支持单个或数组）'),
     // 兼容 input_images 字段
-    input_images: z.array(z.string()).optional().describe('输入图像数组（URL或Base64）'),
+    input_images: z
+      .array(z.string())
+      .optional()
+      .describe('输入图像数组（URL或Base64）'),
   })
   .passthrough();
 
