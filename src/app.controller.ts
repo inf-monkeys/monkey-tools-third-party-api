@@ -180,27 +180,6 @@ export class AppController {
             },
           ],
         },
-        {
-          name: 'runway',
-          type: CredentialAuthType.AKSK,
-          displayName: 'Runway ML',
-          // @ts-expect-error - iconUrl property not defined in type
-          iconUrl: 'https://runwayml.com/favicon.ico',
-          properties: [
-            {
-              displayName:
-                '从 [Runway ML](https://runwayml.com/account/api-keys) 获取你的 API Key。',
-              type: 'notice',
-              name: 'docs',
-            },
-            {
-              displayName: 'API Key',
-              type: 'string',
-              name: 'api_key',
-              required: true,
-            },
-          ],
-        },
       ],
     };
   }

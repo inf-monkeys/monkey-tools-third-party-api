@@ -1,15 +1,13 @@
+import { Injectable, Logger } from '@nestjs/common';
 import { config } from '@/common/config';
+import axios from 'axios';
 import {
-  RunwayRequestDto,
   ImageToVideoRequestDto,
   VideoToVideoRequestDto,
   TextToImageRequestDto,
   VideoUpscaleRequestDto,
   CharacterPerformanceRequestDto,
 } from '@/common/schemas/runway';
-import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
 import { processContentUrls } from '@/common/utils/output';
 
 @Injectable()
@@ -17,12 +15,9 @@ export class RunwayService {
   private readonly logger = new Logger(RunwayService.name);
   private readonly baseUrl = 'https://api.dev.runwayml.com/v1';
   private readonly apiKey: string = config.runway?.apiKey || '';
-  private readonly requiredHeaders = {
-    'X-Runway-Version': '2024-11-06',
-    'Content-Type': 'application/json',
-  };
+  private readonly apiVersion = '2024-11-06';
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor() {}
 
   /**
    * 从凭证对象中获取 API 密钥
@@ -30,200 +25,112 @@ export class RunwayService {
    * @returns API 密钥
    */
   private getApiKey(credential?: any): string {
-    try {
-      // 如果凭证是字符串，直接返回
-      if (typeof credential === 'string') {
-        return credential;
+    if (credential) {
+      if (credential.apiKey) {
+        return credential.apiKey;
       }
 
-      // 如果凭证是对象
-      if (credential && typeof credential === 'object') {
-        // 如果有 apiKey 或 api_key 属性
-        if (credential.apiKey) return credential.apiKey;
-        if (credential.api_key) return credential.api_key;
-
-        // 尝试解析 encryptedData
-        if (credential.encryptedData) {
+      if (credential.encryptedData) {
+        try {
           try {
-            // 首先尝试解析为 JSON
             const credentialData = JSON.parse(credential.encryptedData);
-            if (credentialData.apiKey) return credentialData.apiKey;
-            if (credentialData.api_key) return credentialData.api_key;
-          } catch (e) {
-            // 如果解析失败，尝试直接使用 encryptedData
-            if (typeof credential.encryptedData === 'string') {
-              return credential.encryptedData;
+            if (credentialData.api_key) {
+              return credentialData.api_key;
             }
+          } catch (jsonError) {
+            return credential.encryptedData;
           }
+        } catch (error) {
+          this.logger.error('处理凭证数据失败:', error.message);
         }
       }
-
-      // 使用配置中的 API 密钥
-      if (config.runway && config.runway.apiKey) {
-        return config.runway.apiKey;
-      }
-
-      throw new Error('未找到 Runway API 密钥');
-    } catch (error) {
-      this.logger.error(`获取 API 密钥失败: ${error.message}`);
-      throw new Error(`获取 API 密钥失败: ${error.message}`);
     }
+
+    if (!this.apiKey) {
+      throw new Error('没有配置 Runway API Key，请联系管理员。');
+    }
+    return this.apiKey;
   }
 
   /**
-   * 规范化并清理 Runway 请求载荷
-   * - 合并顶层常用参数（可选）
-   * - 移除 null/undefined
-   * - 将空数组字段(referenceImages/references)删除
-   * - 将 referenceImages 统一为 { uri, tag? }[]，最多 3 个
-   * - 将 references 统一为含 { type, uri } 的对象数组
+   * 获取请求头
+   * @param apiKey API密钥
+   * @returns 请求头对象
    */
-  private normalizePayload(raw: any, topLevel?: any): any {
-    try {
-      this.logger.log(
-        'normalizePayload 输入参数:',
-        JSON.stringify({ raw, topLevel }, null, 2),
-      );
-      const base: Record<string, any> = { ...(raw || {}) };
-
-      // 合并顶层常用参数（仅当提供时覆盖）
-      if (topLevel && typeof topLevel === 'object') {
-        if (topLevel.promptText !== undefined)
-          base.promptText = topLevel.promptText;
-        if (topLevel.promptImage !== undefined)
-          base.promptImage = topLevel.promptImage;
-        if (topLevel.videoUri !== undefined) base.videoUri = topLevel.videoUri;
-        if (topLevel.model !== undefined) base.model = topLevel.model;
-        if (topLevel.ratio !== undefined) base.ratio = topLevel.ratio;
-        if (topLevel.seed !== undefined) base.seed = topLevel.seed;
-      }
-
-      // 统一 referenceImages
-      if (base.referenceImages !== undefined) {
-        if (
-          !Array.isArray(base.referenceImages) ||
-          base.referenceImages.length === 0
-        ) {
-          delete base.referenceImages;
-        } else {
-          // 确保 referenceImages 是数组且不为null/undefined
-          const images = Array.isArray(base.referenceImages)
-            ? base.referenceImages
-            : [];
-          base.referenceImages = images
-            .map((item: any) => {
-              if (!item) return null;
-              if (typeof item === 'string') return { uri: item };
-              if (typeof item === 'object' && item.uri) {
-                return item.tag
-                  ? { uri: item.uri, tag: item.tag }
-                  : { uri: item.uri };
-              }
-              return null;
-            })
-            .filter(Boolean)
-            .slice(0, 3);
-          if (base.referenceImages.length === 0) delete base.referenceImages;
-        }
-      }
-
-      // 统一 references
-      if (base.references !== undefined) {
-        if (!Array.isArray(base.references) || base.references.length === 0) {
-          delete base.references;
-        } else {
-          // 确保 references 是数组且不为null/undefined
-          const refs = Array.isArray(base.references) ? base.references : [];
-          base.references = refs
-            .map((item: any) =>
-              item && typeof item === 'object' && item.type && item.uri
-                ? item
-                : null,
-            )
-            .filter(Boolean);
-          if (base.references.length === 0) delete base.references;
-        }
-      }
-
-      // 清理 null/undefined
-      Object.keys(base).forEach((key) => {
-        if (base[key] === null || base[key] === undefined) {
-          delete base[key];
-        }
-      });
-
-      this.logger.log(
-        'normalizePayload 输出结果:',
-        JSON.stringify(base, null, 2),
-      );
-      return base;
-    } catch (error) {
-      this.logger.error('normalizePayload 执行错误:', error.message);
-      this.logger.error('错误堆栈:', error.stack);
-      throw error;
-    }
+  private getHeaders(apiKey: string) {
+    return {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'X-Runway-Version': this.apiVersion,
+    };
   }
 
   /**
    * 等待任务完成
-   * @param taskId 任务 ID
-   * @param apiKey API 密钥
-   * @returns 完成的任务对象
+   * @param taskId 任务ID
+   * @param apiKey API密钥
+   * @returns 完成的任务结果
    */
   private async waitForTask(taskId: string, apiKey: string): Promise<any> {
-    const maxRetries = 60; // 最多等待5分钟
+    const maxRetries = 120; // 最多等待10分钟
     let retries = 0;
+
+    // 初始等待
+    await this.sleep(10000); // 10秒
 
     while (retries < maxRetries) {
       try {
-        const response = await firstValueFrom(
-          this.httpService.get(`${this.baseUrl}/tasks/${taskId}`, {
-            headers: {
-              ...this.requiredHeaders,
-              Authorization: `Bearer ${apiKey}`,
-            },
-            proxy: config.proxy?.url
-              ? {
-                  host: new URL(config.proxy.url).hostname,
-                  port: parseInt(new URL(config.proxy.url).port),
-                  protocol: new URL(config.proxy.url).protocol.slice(0, -1) as
-                    | 'http'
-                    | 'https',
-                }
-              : undefined,
-          }),
-        );
+        this.logger.log(`检查任务状态: ${taskId}, 尝试次数: ${retries + 1}`);
+
+        const response = await axios.get(`${this.baseUrl}/tasks/${taskId}`, {
+          headers: this.getHeaders(apiKey),
+          proxy: config.proxy?.url
+            ? {
+                host: new URL(config.proxy.url).hostname,
+                port: parseInt(new URL(config.proxy.url).port),
+                protocol: new URL(config.proxy.url).protocol.slice(0, -1),
+              }
+            : undefined,
+        });
 
         const task = response.data;
-        this.logger.log(`任务 ${taskId} 状态: ${task.status}`);
+        this.logger.log(`任务状态: ${task.status}`);
 
         if (task.status === 'SUCCEEDED') {
-          this.logger.log(
-            `任务成功完成，返回数据结构:`,
-            JSON.stringify(task, null, 2),
-          );
+          this.logger.log('任务完成成功');
           return task;
         } else if (task.status === 'FAILED') {
-          this.logger.error(`任务失败详情:`, JSON.stringify(task, null, 2));
-          throw new Error(`任务失败: ${JSON.stringify(task)}`);
+          this.logger.error('任务失败:', task.failure);
+          throw new Error(`任务失败: ${task.failure?.message || '未知错误'}`);
         }
 
         // 等待5秒后重试
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        await this.sleep(5000);
         retries++;
       } catch (error) {
+        if (error.response?.status === 404) {
+          throw new Error('任务不存在或已被删除');
+        }
         this.logger.error(`检查任务状态失败: ${error.message}`);
         throw error;
       }
     }
 
-    throw new Error(`任务 ${taskId} 超时，超过最大等待时间`);
+    throw new Error('任务等待超时');
   }
 
   /**
-   * 图像转视频
+   * 延迟函数
+   * @param ms 毫秒数
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * 图片到视频生成
    * @param inputData 请求参数
-   * @returns 生成的视频
+   * @returns API 响应数据
    */
   async imageToVideo(inputData: ImageToVideoRequestDto) {
     try {
@@ -232,27 +139,29 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = this.normalizePayload(inputData.inputs);
+      const payload = { ...inputData.inputs };
 
-      this.logger.log('发送图像转视频请求到 Runway API');
+      this.logger.log('Sending image-to-video request to Runway API');
+
+      console.log('API URL:', `${this.baseUrl}/image_to_video`);
+      console.log('API Request Headers:', {
+        ...this.getHeaders(apiKey.substring(0, 10) + '...'),
+      });
       console.log('API Request Payload:', JSON.stringify(payload, null, 2));
 
-      const response = await firstValueFrom(
-        this.httpService.post(`${this.baseUrl}/image_to_video`, payload, {
-          headers: {
-            ...this.requiredHeaders,
-            Authorization: `Bearer ${apiKey}`,
-          },
+      const response = await axios.post(
+        `${this.baseUrl}/image_to_video`,
+        payload,
+        {
+          headers: this.getHeaders(apiKey),
           proxy: config.proxy?.url
             ? {
                 host: new URL(config.proxy.url).hostname,
                 port: parseInt(new URL(config.proxy.url).port),
-                protocol: new URL(config.proxy.url).protocol.slice(0, -1) as
-                  | 'http'
-                  | 'https',
+                protocol: new URL(config.proxy.url).protocol.slice(0, -1),
               }
             : undefined,
-        }),
+        },
       );
 
       const taskId = response.data.id;
@@ -260,25 +169,22 @@ export class RunwayService {
 
       // 等待任务完成
       const completedTask = await this.waitForTask(taskId, apiKey);
-
-      // 处理输出 URL
       const output = await processContentUrls(completedTask);
 
       return {
         data: output,
-        taskId: taskId,
-        requestId: response.headers['x-request-id'] || '',
+        requestId: taskId,
       };
     } catch (error) {
-      this.logger.error(`图像转视频请求失败: ${error.message}`);
+      this.logger.error(`Image-to-video API request failed: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * 视频转视频
+   * 视频到视频生成
    * @param inputData 请求参数
-   * @returns 生成的视频
+   * @returns API 响应数据
    */
   async videoToVideo(inputData: VideoToVideoRequestDto) {
     try {
@@ -287,27 +193,23 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = this.normalizePayload(inputData.inputs);
+      const payload = { ...inputData.inputs };
 
-      this.logger.log('发送视频转视频请求到 Runway API');
-      console.log('API Request Payload:', JSON.stringify(payload, null, 2));
+      this.logger.log('Sending video-to-video request to Runway API');
 
-      const response = await firstValueFrom(
-        this.httpService.post(`${this.baseUrl}/video_to_video`, payload, {
-          headers: {
-            ...this.requiredHeaders,
-            Authorization: `Bearer ${apiKey}`,
-          },
+      const response = await axios.post(
+        `${this.baseUrl}/video_to_video`,
+        payload,
+        {
+          headers: this.getHeaders(apiKey),
           proxy: config.proxy?.url
             ? {
                 host: new URL(config.proxy.url).hostname,
                 port: parseInt(new URL(config.proxy.url).port),
-                protocol: new URL(config.proxy.url).protocol.slice(0, -1) as
-                  | 'http'
-                  | 'https',
+                protocol: new URL(config.proxy.url).protocol.slice(0, -1),
               }
             : undefined,
-        }),
+        },
       );
 
       const taskId = response.data.id;
@@ -315,25 +217,22 @@ export class RunwayService {
 
       // 等待任务完成
       const completedTask = await this.waitForTask(taskId, apiKey);
-
-      // 处理输出 URL
       const output = await processContentUrls(completedTask);
 
       return {
         data: output,
-        taskId: taskId,
-        requestId: response.headers['x-request-id'] || '',
+        requestId: taskId,
       };
     } catch (error) {
-      this.logger.error(`视频转视频请求失败: ${error.message}`);
+      this.logger.error(`Video-to-video API request failed: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * 文本转图像
+   * 文本到图像生成
    * @param inputData 请求参数
-   * @returns 生成的图像
+   * @returns API 响应数据
    */
   async textToImage(inputData: TextToImageRequestDto) {
     try {
@@ -342,27 +241,23 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = this.normalizePayload(inputData.inputs);
+      const payload = { ...inputData.inputs };
 
-      this.logger.log('发送文本转图像请求到 Runway API');
-      console.log('API Request Payload:', JSON.stringify(payload, null, 2));
+      this.logger.log('Sending text-to-image request to Runway API');
 
-      const response = await firstValueFrom(
-        this.httpService.post(`${this.baseUrl}/text_to_image`, payload, {
-          headers: {
-            ...this.requiredHeaders,
-            Authorization: `Bearer ${apiKey}`,
-          },
+      const response = await axios.post(
+        `${this.baseUrl}/text_to_image`,
+        payload,
+        {
+          headers: this.getHeaders(apiKey),
           proxy: config.proxy?.url
             ? {
                 host: new URL(config.proxy.url).hostname,
                 port: parseInt(new URL(config.proxy.url).port),
-                protocol: new URL(config.proxy.url).protocol.slice(0, -1) as
-                  | 'http'
-                  | 'https',
+                protocol: new URL(config.proxy.url).protocol.slice(0, -1),
               }
             : undefined,
-        }),
+        },
       );
 
       const taskId = response.data.id;
@@ -370,17 +265,14 @@ export class RunwayService {
 
       // 等待任务完成
       const completedTask = await this.waitForTask(taskId, apiKey);
-
-      // 处理输出 URL
       const output = await processContentUrls(completedTask);
 
       return {
         data: output,
-        taskId: taskId,
-        requestId: response.headers['x-request-id'] || '',
+        requestId: taskId,
       };
     } catch (error) {
-      this.logger.error(`文本转图像请求失败: ${error.message}`);
+      this.logger.error(`Text-to-image API request failed: ${error.message}`);
       throw error;
     }
   }
@@ -388,7 +280,7 @@ export class RunwayService {
   /**
    * 视频放大
    * @param inputData 请求参数
-   * @returns 放大的视频
+   * @returns API 响应数据
    */
   async videoUpscale(inputData: VideoUpscaleRequestDto) {
     try {
@@ -397,27 +289,23 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = this.normalizePayload(inputData.inputs);
+      const payload = { ...inputData.inputs };
 
-      this.logger.log('发送视频放大请求到 Runway API');
-      console.log('API Request Payload:', JSON.stringify(payload, null, 2));
+      this.logger.log('Sending video-upscale request to Runway API');
 
-      const response = await firstValueFrom(
-        this.httpService.post(`${this.baseUrl}/video_upscale`, payload, {
-          headers: {
-            ...this.requiredHeaders,
-            Authorization: `Bearer ${apiKey}`,
-          },
+      const response = await axios.post(
+        `${this.baseUrl}/video_upscale`,
+        payload,
+        {
+          headers: this.getHeaders(apiKey),
           proxy: config.proxy?.url
             ? {
                 host: new URL(config.proxy.url).hostname,
                 port: parseInt(new URL(config.proxy.url).port),
-                protocol: new URL(config.proxy.url).protocol.slice(0, -1) as
-                  | 'http'
-                  | 'https',
+                protocol: new URL(config.proxy.url).protocol.slice(0, -1),
               }
             : undefined,
-        }),
+        },
       );
 
       const taskId = response.data.id;
@@ -425,17 +313,14 @@ export class RunwayService {
 
       // 等待任务完成
       const completedTask = await this.waitForTask(taskId, apiKey);
-
-      // 处理输出 URL
       const output = await processContentUrls(completedTask);
 
       return {
         data: output,
-        taskId: taskId,
-        requestId: response.headers['x-request-id'] || '',
+        requestId: taskId,
       };
     } catch (error) {
-      this.logger.error(`视频放大请求失败: ${error.message}`);
+      this.logger.error(`Video-upscale API request failed: ${error.message}`);
       throw error;
     }
   }
@@ -443,7 +328,7 @@ export class RunwayService {
   /**
    * 角色表演控制
    * @param inputData 请求参数
-   * @returns 生成的表演视频
+   * @returns API 响应数据
    */
   async characterPerformance(inputData: CharacterPerformanceRequestDto) {
     try {
@@ -452,118 +337,23 @@ export class RunwayService {
         throw new Error('API Key is empty');
       }
 
-      const payload = this.normalizePayload(inputData.inputs);
+      const payload = { ...inputData.inputs };
 
-      this.logger.log('发送角色表演控制请求到 Runway API');
-      console.log('API Request Payload:', JSON.stringify(payload, null, 2));
+      this.logger.log('Sending character-performance request to Runway API');
 
-      const response = await firstValueFrom(
-        this.httpService.post(
-          `${this.baseUrl}/character_performance`,
-          payload,
-          {
-            headers: {
-              ...this.requiredHeaders,
-              Authorization: `Bearer ${apiKey}`,
-            },
-            proxy: config.proxy?.url
-              ? {
-                  host: new URL(config.proxy.url).hostname,
-                  port: parseInt(new URL(config.proxy.url).port),
-                  protocol: new URL(config.proxy.url).protocol.slice(0, -1) as
-                    | 'http'
-                    | 'https',
-                }
-              : undefined,
-          },
-        ),
-      );
-
-      const taskId = response.data.id;
-      this.logger.log(`任务已创建，ID: ${taskId}`);
-
-      // 等待任务完成
-      const completedTask = await this.waitForTask(taskId, apiKey);
-
-      // 处理输出 URL
-      const output = await processContentUrls(completedTask);
-
-      return {
-        data: output,
-        taskId: taskId,
-        requestId: response.headers['x-request-id'] || '',
-      };
-    } catch (error) {
-      this.logger.error(`角色表演控制请求失败: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * 通用 API 调用方法
-   * @param inputData 请求参数
-   * @returns API 响应数据
-   */
-  async callApi(inputData: RunwayRequestDto) {
-    try {
-      this.logger.log('=== Runway API callApi 开始 ===');
-      this.logger.log('输入数据:', JSON.stringify(inputData, null, 2));
-
-      this.logger.log('开始获取API密钥...');
-      const apiKey = this.getApiKey(inputData.credential);
-      if (!apiKey) {
-        throw new Error('API Key is empty');
-      }
-
-      this.logger.log('成功获取API密钥');
-
-      // 构建并规范化 payload（合并顶层常用参数并清理空值/空数组，修正引用字段结构）
-      this.logger.log('调用 normalizePayload 前...');
-      const payload = this.normalizePayload(inputData.inputs, inputData);
-      this.logger.log(
-        '调用 normalizePayload 后，payload:',
-        JSON.stringify(payload, null, 2),
-      );
-
-      // 根据模型类型选择合适的端点
-      let endpoint = '';
-      if (payload.model) {
-        if (['gen4_turbo', 'gen3a_turbo'].includes(payload.model)) {
-          endpoint = '/image_to_video';
-        } else if (payload.model === 'gen4_aleph') {
-          endpoint = '/video_to_video';
-        } else if (['gen4_image', 'gen4_image_turbo'].includes(payload.model)) {
-          endpoint = '/text_to_image';
-        } else if (payload.model === 'upscale_v1') {
-          endpoint = '/video_upscale';
-        } else if (payload.model === 'act_two') {
-          endpoint = '/character_performance';
-        }
-      }
-
-      if (!endpoint) {
-        throw new Error('无法确定API端点，请检查模型参数');
-      }
-
-      this.logger.log(`发送请求到 Runway API: ${endpoint}`);
-      console.log('API Request Payload:', JSON.stringify(payload, null, 2));
-
-      const response = await firstValueFrom(
-        this.httpService.post(`${this.baseUrl}${endpoint}`, payload, {
-          headers: {
-            ...this.requiredHeaders,
-            Authorization: `Bearer ${apiKey}`,
-          },
+      const response = await axios.post(
+        `${this.baseUrl}/character_performance`,
+        payload,
+        {
+          headers: this.getHeaders(apiKey),
           proxy: config.proxy?.url
             ? {
                 host: new URL(config.proxy.url).hostname,
                 port: parseInt(new URL(config.proxy.url).port),
-                protocol: new URL(config.proxy.url).protocol.slice(0, -1) as
-                  | 'http'
-                  | 'https',
+                protocol: new URL(config.proxy.url).protocol.slice(0, -1),
               }
             : undefined,
-        }),
+        },
       );
 
       const taskId = response.data.id;
@@ -571,33 +361,16 @@ export class RunwayService {
 
       // 等待任务完成
       const completedTask = await this.waitForTask(taskId, apiKey);
-
-      this.logger.log(
-        '完成的任务数据:',
-        JSON.stringify(completedTask, null, 2),
-      );
-
-      // 处理输出 URL - 添加安全检查
-      let output;
-      try {
-        output = await processContentUrls(completedTask);
-      } catch (processError) {
-        this.logger.error('处理输出URL时发生错误:', processError.message);
-        this.logger.error(
-          '原始任务数据:',
-          JSON.stringify(completedTask, null, 2),
-        );
-        // 如果处理失败，直接返回原始数据
-        output = completedTask;
-      }
+      const output = await processContentUrls(completedTask);
 
       return {
         data: output,
-        taskId: taskId,
-        requestId: response.headers['x-request-id'] || '',
+        requestId: taskId,
       };
     } catch (error) {
-      this.logger.error(`Runway API 请求失败: ${error.message}`);
+      this.logger.error(
+        `Character-performance API request failed: ${error.message}`,
+      );
       throw error;
     }
   }
