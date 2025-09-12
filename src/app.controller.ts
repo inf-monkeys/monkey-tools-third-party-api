@@ -185,7 +185,7 @@ export class AppController {
           type: CredentialAuthType.AKSK,
           displayName: 'Runway ML',
           // @ts-expect-error - iconUrl property not defined in type
-          iconUrl: 'https://app.runwayml.com/favicon.ico',
+          iconUrl: 'https://runwayml.com/favicon.png',
           properties: [
             {
               displayName:
