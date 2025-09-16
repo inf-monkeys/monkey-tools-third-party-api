@@ -46,7 +46,7 @@ export const UnitConverterParamsSchema = z.object({
 
 // 定义请求体的结构
 export const UnitConverterRequestSchema = z.object({
-  inputs: UnitConverterParamsSchema,
+  input: UnitConverterParamsSchema,
 });
 
 // 基于 Zod Schema 创建 DTO 类

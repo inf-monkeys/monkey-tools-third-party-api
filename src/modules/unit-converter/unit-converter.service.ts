@@ -34,7 +34,7 @@ export class UnitConverterService {
    */
   async convertUnit(inputData: UnitConverterRequestDto) {
     try {
-      const { value, unitType, fromUnit, toUnit } = inputData.inputs;
+      const { value, unitType, fromUnit, toUnit } = inputData.input;
 
       this.logger.log(
         `Converting ${value} from ${fromUnit} to ${toUnit} (type: ${unitType})`,
