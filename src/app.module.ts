@@ -15,6 +15,7 @@ import { ByteArkModule } from './modules/byte-ark/byte-ark.module';
 import { OpenAiModule } from './modules/openai/openai.module';
 import { GoogleSearchModule } from './modules/google-search/google-search.module';
 import { RunwayModule } from './modules/runway/runway.module';
+import { UnitConverterModule } from './modules/unit-converter/unit-converter.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { RunwayModule } from './modules/runway/runway.module';
     OpenAiModule,
     GoogleSearchModule,
     RunwayModule,
+    UnitConverterModule,
   ],
   controllers: [AppController],
   providers: [
