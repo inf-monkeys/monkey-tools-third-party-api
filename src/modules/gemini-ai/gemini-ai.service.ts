@@ -454,9 +454,26 @@ export class GeminiAiService {
 
       this.logger.log('发送请求到 Google Gemini API (官方库)...');
 
+      // 为模型注入系统级指令，确保：直接出图、不问再确认、不提下载与分辨率
+      const systemInstructionText = [
+        'You are an image generation tool. ',
+        'Directly generate the image from the user prompt without asking reconfirmation or clarification. ',
+        'Do not mention anything related to downloading the image. ',
+        'Do not mention anything related to resolution. ',
+        'If both text and image are possible, return image only.',
+      ].join('');
+
       const response = await client.models.generateContent({
         model: model,
         contents: contents,
+        config: {
+          systemInstruction: {
+            role: 'system',
+            parts: [{ text: systemInstructionText }],
+          },
+          // 只请求图像模态，避免模型返回文本描述
+          responseModalities: ['IMAGE'],
+        },
       });
 
       this.logger.log('收到 Google Gemini API 响应 (官方库)');
