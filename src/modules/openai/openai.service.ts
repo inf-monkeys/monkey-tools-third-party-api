@@ -374,10 +374,18 @@ export class OpenAiService {
         return await this.editImage(params, apiKey);
       }
 
+      // 模型侧直出图指令（避免模型走文字解释或引入分辨率/下载相关语义）
+      const imageSystemGuidelines = [
+        'Directly generate the image from the prompt without reconfirmation or clarification.',
+        'Do not mention anything related to downloading the image.',
+        'Do not mention anything related to resolution.',
+        'Do not add text overlays or captions unless explicitly requested.',
+      ].join(' ');
+
       // 构建图像生成请求体 - 使用真正的 gpt-image-1 模型
       const requestBody = {
         model: 'gpt-image-1',
-        prompt: params.prompt,
+        prompt: `${imageSystemGuidelines}\n${params.prompt}`,
         n: params.n || 1,
         size: params.size || '1024x1024',
         quality: this.mapQuality(params.quality) || 'high', // gpt-image-1支持: low, medium, high, auto
@@ -567,7 +575,14 @@ export class OpenAiService {
         formData.append('image[]', imageBuffer, `image_${index}.png`);
       });
       formData.append('model', 'gpt-image-1');
-      formData.append('prompt', params.prompt);
+      // 为编辑同样添加模型侧直出图指令
+      const imageSystemGuidelines = [
+        'Directly generate the image from the prompt without reconfirmation or clarification.',
+        'Do not mention anything related to downloading the image.',
+        'Do not mention anything related to resolution.',
+        'Do not add text overlays or captions unless explicitly requested.',
+      ].join(' ');
+      formData.append('prompt', `${imageSystemGuidelines}\n${params.prompt}`);
       formData.append('n', (params.n || 1).toString());
       formData.append('size', params.size || '1024x1024');
       formData.append('quality', this.mapQuality(params.quality) || 'high');
