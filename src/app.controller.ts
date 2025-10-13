@@ -55,20 +55,6 @@ export class AppController {
           ],
         },
         {
-          name: 'jimeng',
-          type: CredentialAuthType.AKSK,
-          displayName: '即梦',
-          logo: '',
-          properties: [
-            {
-              displayName: 'API Key',
-              type: 'string',
-              name: 'api_key',
-              required: true,
-            },
-          ],
-        },
-        {
           name: 'tripo-api',
           type: CredentialAuthType.AKSK,
           displayName: 'Tripo API',
@@ -135,6 +121,33 @@ export class AppController {
               displayName: 'API Key',
               type: 'string',
               name: 'api_key',
+              required: true,
+            },
+          ],
+        },
+        {
+          name: 'volc-visual',
+          type: CredentialAuthType.AKSK,
+          displayName: '火山引擎 Visual (即梦4.0)',
+          // @ts-expect-error - iconUrl property not defined in type
+          iconUrl: 'https://www.volcengine.com/favicon.ico',
+          properties: [
+            {
+              displayName:
+                '从 [火山引擎](https://www.volcengine.com/) 控制台获取 AccessKey/SecretKey。',
+              type: 'notice',
+              name: 'docs',
+            },
+            {
+              displayName: 'Access Key ID',
+              type: 'string',
+              name: 'access_key_id',
+              required: true,
+            },
+            {
+              displayName: 'Secret Access Key',
+              type: 'string',
+              name: 'secret_access_key',
               required: true,
             },
           ],

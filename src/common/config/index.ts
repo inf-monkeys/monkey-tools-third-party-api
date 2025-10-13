@@ -53,6 +53,14 @@ export interface ByteArkConfig {
   apiKey?: string;
 }
 
+export interface VolcVisualConfig {
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  region?: string; // default: cn-north-1
+  service?: string; // default: cv
+  host?: string; // default: visual.volcengineapi.com
+}
+
 export interface OpenAiConfig {
   apiKey?: string;
 }
@@ -76,6 +84,7 @@ export interface Config {
   bfl: BflConfig;
   gemini: GeminiConfig;
   byteArk: ByteArkConfig;
+  volcVisual: VolcVisualConfig;
   openai: OpenAiConfig;
   googleSearch: GoogleSearchConfig;
   runway: RunwayConfig;
@@ -122,6 +131,14 @@ export const config: Config = {
   },
   byteArk: {
     apiKey: readConfig('byteArk.apiKey'),
+  },
+  volcVisual: {
+    accessKeyId: readConfig('volcVisual.accessKeyId') || process.env.VOLC_VISUAL_ACCESS_KEY_ID,
+    secretAccessKey:
+      readConfig('volcVisual.secretAccessKey') || process.env.VOLC_VISUAL_SECRET_ACCESS_KEY,
+    region: readConfig('volcVisual.region', 'cn-north-1'),
+    service: readConfig('volcVisual.service', 'cv'),
+    host: readConfig('volcVisual.host', 'visual.volcengineapi.com'),
   },
   openai: {
     apiKey: readConfig('openai.apiKey'),
