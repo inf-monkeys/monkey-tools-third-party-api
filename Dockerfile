@@ -17,7 +17,7 @@ RUN pnpm i
 COPY . .
 
 # Creates a "dist" folder with the production build
-RUN pnpm build && ls -laR dist/ | head -50
+RUN pnpm build
 
 # Expose server port
 EXPOSE 3000
