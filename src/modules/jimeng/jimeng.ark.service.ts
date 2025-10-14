@@ -5,7 +5,15 @@ import { processContentUrls } from '@/common/utils/output';
 
 export interface JimengArkGenerateInput {
   prompt?: string;
+  image?: string | string[];
   size?: '1K' | '2K' | '4K';
+  seed?: number;
+  sequential_image_generation?: 'auto' | 'disabled';
+  sequential_image_generation_options?: {
+    max_images?: number;
+  };
+  guidance_scale?: number;
+  response_format?: 'url' | 'b64_json';
   watermark?: boolean;
   stream?: boolean;
   credential?: {
@@ -53,15 +61,37 @@ export class JimengArkService {
 
     const apiKey = this.resolveApiKey(input.credential);
 
-    const body = {
+    const body: any = {
       model: this.model,
       prompt: input.prompt,
-      sequential_image_generation: 'disabled',
-      response_format: 'url',
       size: input.size || '2K',
+      sequential_image_generation:
+        input.sequential_image_generation || 'disabled',
+      response_format: input.response_format || 'url',
       stream: input.stream ?? false,
       watermark: input.watermark ?? true,
     };
+
+    // 添加可选参数
+    if (input.image !== undefined) {
+      body.image = input.image;
+    }
+
+    if (input.seed !== undefined && input.seed !== -1) {
+      body.seed = input.seed;
+    }
+
+    if (
+      input.sequential_image_generation === 'auto' &&
+      input.sequential_image_generation_options
+    ) {
+      body.sequential_image_generation_options =
+        input.sequential_image_generation_options;
+    }
+
+    if (input.guidance_scale !== undefined) {
+      body.guidance_scale = input.guidance_scale;
+    }
 
     try {
       const response = await axios.post(this.endpoint, body, {

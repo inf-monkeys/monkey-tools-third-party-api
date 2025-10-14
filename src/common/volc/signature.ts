@@ -34,16 +34,23 @@ function toUTCString(date: Date): string {
 }
 
 function encodeRFC3986(str: string) {
-  return encodeURIComponent(str).replace(/[!*'()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  return encodeURIComponent(str).replace(
+    /[!*'()]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 }
 
-function buildCanonicalQueryString(query?: Record<string, string | number | boolean | undefined>) {
+function buildCanonicalQueryString(
+  query?: Record<string, string | number | boolean | undefined>,
+) {
   if (!query) return '';
   const entries = Object.entries(query)
     .filter(([, v]) => v !== undefined)
     .map(([k, v]) => [k, String(v)] as [string, string])
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  return entries.map(([k, v]) => `${encodeRFC3986(k)}=${encodeRFC3986(v)}`).join('&');
+  return entries
+    .map(([k, v]) => `${encodeRFC3986(k)}=${encodeRFC3986(v)}`)
+    .join('&');
 }
 
 export function volcSign(params: VolcSignParams) {
@@ -67,13 +74,16 @@ export function volcSign(params: VolcSignParams) {
   const extraHeaders: Record<string, string> = {};
   if (params.headers) {
     for (const [k, v] of Object.entries(params.headers)) {
-      if (v !== undefined && v !== null) extraHeaders[k.toLowerCase()] = String(v);
+      if (v !== undefined && v !== null)
+        extraHeaders[k.toLowerCase()] = String(v);
     }
   }
   const allHeaders = { ...baseHeaders, ...extraHeaders };
 
   const signedHeaderKeys = Object.keys(allHeaders).sort();
-  const canonicalHeaders = signedHeaderKeys.map((k) => `${k}:${allHeaders[k].toString().trim()}`).join('\n');
+  const canonicalHeaders = signedHeaderKeys
+    .map((k) => `${k}:${allHeaders[k].toString().trim()}`)
+    .join('\n');
   const signedHeaders = signedHeaderKeys.join(';');
 
   const canonicalQueryString = buildCanonicalQueryString(params.query);
@@ -94,11 +104,17 @@ export function volcSign(params: VolcSignParams) {
     sha256Hex(canonicalRequest),
   ].join('\n');
 
-  const kDate = hmacSHA256(Buffer.from('VOLC' + params.secretAccessKey, 'utf-8'), date);
+  const kDate = hmacSHA256(
+    Buffer.from('VOLC' + params.secretAccessKey, 'utf-8'),
+    date,
+  );
   const kRegion = hmacSHA256(kDate, params.region);
   const kService = hmacSHA256(kRegion, params.service);
   const kSigning = hmacSHA256(kService, 'request');
-  const signature = crypto.createHmac('sha256', kSigning).update(stringToSign).digest('hex');
+  const signature = crypto
+    .createHmac('sha256', kSigning)
+    .update(stringToSign)
+    .digest('hex');
 
   const authorization = `HMAC-SHA256 Credential=${params.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
@@ -123,4 +139,3 @@ export function volcSign(params: VolcSignParams) {
     xDate,
   };
 }
-

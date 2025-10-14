@@ -133,9 +133,12 @@ export const config: Config = {
     apiKey: readConfig('byteArk.apiKey'),
   },
   volcVisual: {
-    accessKeyId: readConfig('volcVisual.accessKeyId') || process.env.VOLC_VISUAL_ACCESS_KEY_ID,
+    accessKeyId:
+      readConfig('volcVisual.accessKeyId') ||
+      process.env.VOLC_VISUAL_ACCESS_KEY_ID,
     secretAccessKey:
-      readConfig('volcVisual.secretAccessKey') || process.env.VOLC_VISUAL_SECRET_ACCESS_KEY,
+      readConfig('volcVisual.secretAccessKey') ||
+      process.env.VOLC_VISUAL_SECRET_ACCESS_KEY,
     region: readConfig('volcVisual.region', 'cn-north-1'),
     service: readConfig('volcVisual.service', 'cv'),
     host: readConfig('volcVisual.host', 'visual.volcengineapi.com'),

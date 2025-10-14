@@ -12,7 +12,8 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test:jimeng-ark": "ts-node -r tsconfig-paths/register scripts/test-jimeng-ark.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.20",
