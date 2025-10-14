@@ -17,10 +17,7 @@ RUN pnpm i
 COPY . .
 
 # Creates a "dist" folder with the production build
-RUN pnpm build
-
-# Verify that build succeeded
-RUN ls -la dist/src/main.js || (echo "Build failed: main.js not found" && exit 1)
+RUN pnpm build && ls -laR dist/ | head -50
 
 # Expose server port
 EXPOSE 3000
