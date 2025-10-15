@@ -202,13 +202,15 @@ export class GeminiAiController {
         'en-US': 'Input Parameters',
       },
       description: {
-        'zh-CN': '包含提示词、输入图像等参数的JSON对象',
+        'zh-CN':
+          '包含提示词、输入图像、宽高比等参数的JSON对象。aspect_ratio 支持: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9',
         'en-US':
-          'JSON object containing prompt, input image and other parameters',
+          'JSON object containing prompt, input image, aspect ratio and other parameters. aspect_ratio supports: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9',
       },
       default: {
-        prompt: '一只可爱的猫咪，nano banana 风格',
+        prompt: '一只可爱的猫咪在阳光下打盹',
         input_image: '',
+        aspect_ratio: '16:9',
       },
       required: true,
     },

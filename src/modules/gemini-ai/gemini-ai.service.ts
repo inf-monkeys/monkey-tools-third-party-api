@@ -463,17 +463,28 @@ export class GeminiAiService {
         'If both text and image are possible, return image only.',
       ].join('');
 
+      // 构建配置对象
+      const requestConfig: any = {
+        systemInstruction: {
+          role: 'system',
+          parts: [{ text: systemInstructionText }],
+        },
+        // 只请求图像模态，避免模型返回文本描述
+        responseModalities: ['IMAGE'],
+      };
+
+      // 如果指定了宽高比，添加 imageConfig
+      if (params.aspect_ratio) {
+        this.logger.log(`使用自定义宽高比: ${params.aspect_ratio}`);
+        requestConfig.imageConfig = {
+          aspectRatio: params.aspect_ratio,
+        };
+      }
+
       const response = await client.models.generateContent({
         model: model,
         contents: contents,
-        config: {
-          systemInstruction: {
-            role: 'system',
-            parts: [{ text: systemInstructionText }],
-          },
-          // 只请求图像模态，避免模型返回文本描述
-          responseModalities: ['IMAGE'],
-        },
+        config: requestConfig,
       });
 
       this.logger.log('收到 Google Gemini API 响应 (官方库)');
@@ -516,7 +527,7 @@ export class GeminiAiService {
                   // S3 未启用，直接返回 data URL（遵循构造器中的提示）
                   const mime = part.inlineData.mimeType || 'image/png';
                   const dataUrl = `data:${mime};base64,${part.inlineData.data}`;
-                  images.push(dataUrl);
+                  images.push({ url: dataUrl });
                 }
               }
             }

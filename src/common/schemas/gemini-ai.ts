@@ -25,6 +25,22 @@ export const GeminiAiParamsSchema = z
       .array(z.string())
       .optional()
       .describe('输入图像数组（URL或Base64）'),
+    // 宽高比配置（仅 Gemini 2.5 Flash Image 支持）
+    aspect_ratio: z
+      .enum([
+        '1:1',
+        '2:3',
+        '3:2',
+        '3:4',
+        '4:3',
+        '4:5',
+        '5:4',
+        '9:16',
+        '16:9',
+        '21:9',
+      ])
+      .optional()
+      .describe('图像宽高比（默认为 1:1 或与输入图片一致）'),
   })
   .passthrough();
 
