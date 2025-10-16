@@ -23,7 +23,7 @@
     "@aws-sdk/lib-storage": "3.826.0",
     "@aws-sdk/s3-request-presigner": "3.826.0",
     "@fal-ai/client": "^1.4.0",
-    "@google/genai": "^1.7.0",
+    "@google/genai": "^1.25.0",
     "@google/generative-ai": "^0.24.1",
     "@inf-monkeys/monkeys": "^0.0.3",
     "@nestjs/axios": "^4.0.0",

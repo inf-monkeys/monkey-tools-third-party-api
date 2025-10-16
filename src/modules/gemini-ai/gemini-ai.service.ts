@@ -330,13 +330,18 @@ export class GeminiAiService {
       };
     }
 
+    // 确保 result 有 images 属性，如果没有则初始化为空数组
+    if (!result.images) {
+      result.images = [];
+    }
+
     // 如果结果中有 images 属性且是数组，则提取图片 URL
-    if (result.images && Array.isArray(result.images)) {
+    if (Array.isArray(result.images)) {
       // 提取所有图片 URL
       const imageUrls = result.images
         .map((img) => {
           // 如果图片是对象并且有 url 属性
-          if (typeof img === 'object' && img.url) {
+          if (typeof img === 'object' && img !== null && img.url) {
             return img.url;
           }
           // 如果图片直接是 URL 字符串
@@ -354,7 +359,7 @@ export class GeminiAiService {
       };
     }
 
-    // 如果没有 images 数组，确保返回空数组
+    // 如果 images 不是数组，确保返回空数组
     return {
       ...result,
       images: [],
@@ -369,7 +374,7 @@ export class GeminiAiService {
    */
   async executeImageGenerationRequest(
     params: any,
-    model: string = 'gemini-2.5-flash-image-preview',
+    model: string = 'gemini-2.5-flash-image',
   ): Promise<any> {
     try {
       const apiKey = this.getApiKey(params.credential);
@@ -452,8 +457,6 @@ export class GeminiAiService {
         contents = contentsArray;
       }
 
-      this.logger.log('发送请求到 Google Gemini API (官方库)...');
-
       // 为模型注入系统级指令，确保：直接出图、不问再确认、不提下载与分辨率
       const systemInstructionText = [
         'You are an image generation tool. ',
@@ -463,40 +466,129 @@ export class GeminiAiService {
         'If both text and image are possible, return image only.',
       ].join('');
 
-      // 构建配置对象
+      // 处理可选的宽高比（aspect_ratio）配置
+      const allowedAspectRatios = new Set([
+        '1:1',
+        '2:3',
+        '3:2',
+        '3:4',
+        '4:3',
+        '4:5',
+        '5:4',
+        '9:16',
+        '16:9',
+        '21:9',
+      ]);
+      const aspectRatioParam = (params &&
+        (params.aspect_ratio || params.aspectRatio)) as string | undefined;
+
       const requestConfig: any = {
-        systemInstruction: {
-          role: 'system',
-          parts: [{ text: systemInstructionText }],
-        },
-        // 只请求图像模态，避免模型返回文本描述
-        responseModalities: ['IMAGE'],
+        systemInstruction: systemInstructionText,
+        responseModalities: ['Image'],
       };
 
-      // 如果指定了宽高比，添加 imageConfig
-      if (params.aspect_ratio) {
-        this.logger.log(`使用自定义宽高比: ${params.aspect_ratio}`);
-        requestConfig.imageConfig = {
-          aspectRatio: params.aspect_ratio,
-        };
+      if (aspectRatioParam && allowedAspectRatios.has(aspectRatioParam)) {
+        requestConfig.imageConfig = { aspectRatio: aspectRatioParam };
+        this.logger.log(`已设置宽高比: ${aspectRatioParam}`);
+      } else if (aspectRatioParam) {
+        this.logger.warn(
+          `收到不支持的宽高比: ${aspectRatioParam}，将使用默认比例（与输入图一致或1:1）`,
+        );
       }
 
-      const response = await client.models.generateContent({
-        model: model,
-        contents: contents,
-        config: requestConfig,
-      });
+      this.logger.log('发送请求到 Google Gemini API (官方库)...');
+      this.logger.log(
+        `请求配置: ${JSON.stringify({ model, config: requestConfig }, null, 2)}`,
+      );
+
+      // 如果包含受支持的宽高比，优先使用原生 REST API 直接下发 generationConfig.imageConfig
+      // 说明：当前 @google/genai 对 generateContent 的 config 映射未包含 imageConfig，直接调用会被忽略
+      let response: any;
+      if (requestConfig.imageConfig?.aspectRatio) {
+        try {
+          const restUrl = `${this.defaultApiBaseUrl}/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+          // 将 contents 规范化为 REST 需要的结构
+          const restParts: any[] = [];
+          if (typeof contents === 'string') {
+            restParts.push({ text: contents });
+          } else if (Array.isArray(contents)) {
+            for (const p of contents) {
+              if (p.text) restParts.push({ text: p.text });
+              else if (p.inlineData)
+                restParts.push({ inlineData: p.inlineData });
+            }
+          }
+
+          const restBody: any = {
+            contents: [
+              {
+                role: 'user',
+                parts: restParts,
+              },
+            ],
+            generationConfig: {
+              responseModalities: requestConfig.responseModalities,
+              imageConfig: {
+                aspectRatio: requestConfig.imageConfig.aspectRatio,
+              },
+            },
+          };
+
+          if (requestConfig.systemInstruction) {
+            restBody.systemInstruction = {
+              role: 'system',
+              parts: [{ text: requestConfig.systemInstruction }],
+            };
+          }
+
+          this.logger.log(
+            `使用 REST 方式调用以传递 imageConfig.aspectRatio (${requestConfig.imageConfig.aspectRatio})`,
+          );
+          const httpResp = await firstValueFrom(
+            this.httpService.post(restUrl, restBody, {
+              headers: { 'Content-Type': 'application/json' },
+              responseType: 'json',
+            }),
+          );
+          response = httpResp.data;
+        } catch (restErr) {
+          this.logger.warn(
+            `REST 方式调用失败，回退到 SDK: ${restErr?.message || restErr}`,
+          );
+          response = await client.models.generateContent({
+            model: model,
+            contents: contents,
+            config: requestConfig,
+          });
+        }
+      } else {
+        // 使用 generateContent 方法（SDK）
+        response = await client.models.generateContent({
+          model: model,
+          contents: contents,
+          config: requestConfig,
+        });
+      }
 
       this.logger.log('收到 Google Gemini API 响应 (官方库)');
 
       const images = [];
+      const imageMetadata: Array<{
+        url: string;
+        mimeType: string;
+        width?: number;
+        height?: number;
+      }> = [];
       const textParts = [];
 
       // 处理响应
-      if (response.candidates && response.candidates.length > 0) {
-        for (const candidate of response.candidates) {
-          if (candidate.content && candidate.content.parts) {
-            for (const part of candidate.content.parts) {
+      const candidates = response.candidates || response.candidates?.candidates;
+      if (candidates && candidates.length > 0) {
+        for (const candidate of candidates) {
+          const content = candidate.content || candidate;
+          if (content && content.parts) {
+            for (const part of content.parts) {
               if (part.text) {
                 this.logger.log(
                   `收到文本响应: ${part.text.substring(0, 50)}...`,
@@ -515,6 +607,35 @@ export class GeminiAiService {
                     );
 
                     images.push({ url: imageUrl });
+                    // 尝试解析尺寸
+                    try {
+                      const dims = this.parseBase64ImageDimensions(
+                        part.inlineData.data,
+                        part.inlineData.mimeType || 'image/png',
+                      );
+                      if (dims) {
+                        imageMetadata.push({
+                          url: imageUrl,
+                          mimeType: part.inlineData.mimeType || 'image/png',
+                          width: dims.width,
+                          height: dims.height,
+                        });
+                        this.logger.log(
+                          `图像尺寸: ${dims.width}x${dims.height}`,
+                        );
+                      } else {
+                        imageMetadata.push({
+                          url: imageUrl,
+                          mimeType: part.inlineData.mimeType || 'image/png',
+                        });
+                      }
+                    } catch (e) {
+                      this.logger.warn(`解析图像尺寸失败: ${e.message}`);
+                      imageMetadata.push({
+                        url: imageUrl,
+                        mimeType: part.inlineData.mimeType || 'image/png',
+                      });
+                    }
                   } catch (uploadError) {
                     this.logger.error(
                       `上传图像到 S3 失败: ${uploadError.message}`,
@@ -524,10 +645,31 @@ export class GeminiAiService {
                     );
                   }
                 } else {
-                  // S3 未启用，直接返回 data URL（遵循构造器中的提示）
+                  // S3 未启用，直接返回 data URL
                   const mime = part.inlineData.mimeType || 'image/png';
                   const dataUrl = `data:${mime};base64,${part.inlineData.data}`;
                   images.push({ url: dataUrl });
+                  // 尝试解析尺寸
+                  try {
+                    const dims = this.parseBase64ImageDimensions(
+                      part.inlineData.data,
+                      mime,
+                    );
+                    if (dims) {
+                      imageMetadata.push({
+                        url: dataUrl,
+                        mimeType: mime,
+                        width: dims.width,
+                        height: dims.height,
+                      });
+                      this.logger.log(`图像尺寸: ${dims.width}x${dims.height}`);
+                    } else {
+                      imageMetadata.push({ url: dataUrl, mimeType: mime });
+                    }
+                  } catch (e) {
+                    this.logger.warn(`解析图像尺寸失败: ${e.message}`);
+                    imageMetadata.push({ url: dataUrl, mimeType: mime });
+                  }
                 }
               }
             }
@@ -539,12 +681,18 @@ export class GeminiAiService {
       const requestId = Date.now().toString();
 
       // 返回请求结果
-      return {
+      const baseResult: any = {
         requestId: requestId,
         status: 'completed',
         images: images,
         text: textParts.length > 0 ? textParts.join('\n') : '',
       };
+
+      if (params && params.debug === true) {
+        baseResult.image_metadata = imageMetadata;
+      }
+
+      return baseResult;
     } catch (error) {
       this.logger.error(`官方库图像生成失败: ${error.message}`);
       this.logger.error(`错误详情: ${JSON.stringify(error, null, 2)}`);
@@ -569,20 +717,34 @@ export class GeminiAiService {
     baseUrl?: string,
   ): Promise<any> {
     try {
+      this.logger.log(`接收到参数: ${JSON.stringify(params, null, 2)}`);
+      this.logger.log(`模型: ${model}`);
+
       // 如果是图像生成模型，使用官方库
       if (
         model &&
-        (model.includes('image') || model === 'gemini-2.5-flash-image-preview')
+        (model.includes('image') || model === 'gemini-2.5-flash-image')
       ) {
+        this.logger.log('使用图像生成模式');
         const result = await this.executeImageGenerationRequest(params, model);
-        return this.formatImageResults(result);
+        this.logger.log(`图像生成结果: ${JSON.stringify(result, null, 2)}`);
+        const formatted = this.formatImageResults(result);
+        this.logger.log(
+          `格式化后的结果: ${JSON.stringify(formatted, null, 2)}`,
+        );
+        return formatted;
       }
 
       // 否则使用原有的 ai-sdk 方式
+      this.logger.log('使用 ai-sdk 模式');
       const result = await this.submitRequest(params, model, baseUrl);
-      return this.formatImageResults(result);
+      this.logger.log(`AI SDK 结果: ${JSON.stringify(result, null, 2)}`);
+      const formatted = this.formatImageResults(result);
+      this.logger.log(`格式化后的结果: ${JSON.stringify(formatted, null, 2)}`);
+      return formatted;
     } catch (error) {
       this.logger.error(`执行请求失败: ${error.message}`);
+      this.logger.error(`错误堆栈: ${error.stack}`);
       throw new Error(`执行请求失败: ${error.message}`);
     }
   }
@@ -630,5 +792,82 @@ export class GeminiAiService {
       this.logger.error(`上传图像到 S3 失败: ${error.message}`);
       throw new Error(`上传图像到 S3 失败: ${error.message}`);
     }
+  }
+
+  private parseBase64ImageDimensions(
+    base64Data: string,
+    mimeType: string,
+  ): {
+    width: number;
+    height: number;
+  } | null {
+    try {
+      const buffer = Buffer.from(
+        base64Data.replace(/^data:[^,]+,/, ''),
+        'base64',
+      );
+      if (mimeType.includes('png')) {
+        return this.readPngDimensions(buffer);
+      }
+      if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
+        return this.readJpegDimensions(buffer);
+      }
+      return null;
+    } catch (e) {
+      this.logger.warn(`解析Base64图像尺寸异常: ${e.message}`);
+      return null;
+    }
+  }
+
+  private readPngDimensions(
+    buffer: Buffer,
+  ): { width: number; height: number } | null {
+    if (buffer.length < 24) return null;
+    const isPng =
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47 &&
+      buffer[4] === 0x0d &&
+      buffer[5] === 0x0a &&
+      buffer[6] === 0x1a &&
+      buffer[7] === 0x0a;
+    if (!isPng) return null;
+    const width = buffer.readUInt32BE(16);
+    const height = buffer.readUInt32BE(20);
+    return { width, height };
+  }
+
+  private readJpegDimensions(
+    buffer: Buffer,
+  ): { width: number; height: number } | null {
+    if (buffer.length < 4) return null;
+    if (!(buffer[0] === 0xff && buffer[1] === 0xd8)) return null;
+    let offset = 2;
+    while (offset < buffer.length) {
+      if (buffer[offset] !== 0xff) {
+        offset++;
+        continue;
+      }
+      let marker = buffer[offset + 1];
+      while (marker === 0xff) {
+        offset++;
+        marker = buffer[offset + 1];
+      }
+      if (marker === 0xd9 || marker === 0xda) break;
+      const length = buffer.readUInt16BE(offset + 2);
+      if (
+        (marker >= 0xc0 && marker <= 0xc3) ||
+        (marker >= 0xc5 && marker <= 0xc7) ||
+        (marker >= 0xc9 && marker <= 0xcb) ||
+        (marker >= 0xcd && marker <= 0xcf)
+      ) {
+        const height = buffer.readUInt16BE(offset + 5);
+        const width = buffer.readUInt16BE(offset + 7);
+        return { width, height };
+      }
+      offset += 2 + length;
+    }
+    return null;
   }
 }

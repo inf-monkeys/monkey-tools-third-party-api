@@ -65,11 +65,12 @@ export const GeminiAiRequestSchema = z
     // 凭证
     credential: z
       .object({
-        type: z.string(),
+        type: z.string().optional(),
         encryptedData: z.string().optional(),
         apiKey: z.string().optional(),
         api_key: z.string().optional(),
       })
+      .passthrough()
       .optional()
       .describe('凭证信息'),
   })

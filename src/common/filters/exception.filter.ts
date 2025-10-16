@@ -24,6 +24,10 @@ export class ExceptionsFilter implements ExceptionFilter {
       );
     } else {
       logger.error(`Request Exception: ${(exception as Error).message}`);
+      // 打印堆栈以便调试
+      if ((exception as Error).stack) {
+        logger.error(`Stack: ${(exception as Error).stack}`);
+      }
     }
     const message =
       exception instanceof AxiosError

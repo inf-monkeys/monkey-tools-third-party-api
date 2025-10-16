@@ -24,7 +24,9 @@ export const JimengArkParamsSchema = z
       .enum(['auto', 'disabled'])
       .optional()
       .default('disabled')
-      .describe('组图功能控制：auto-自动判断是否返回组图，disabled-只生成一张图'),
+      .describe(
+        '组图功能控制：auto-自动判断是否返回组图，disabled-只生成一张图',
+      ),
     sequential_image_generation_options: z
       .object({
         max_images: z
@@ -50,7 +52,9 @@ export const JimengArkParamsSchema = z
       .enum(['url', 'b64_json'])
       .optional()
       .default('url')
-      .describe('生成图像的返回格式：url-返回图片链接，b64_json-返回Base64编码'),
+      .describe(
+        '生成图像的返回格式：url-返回图片链接，b64_json-返回Base64编码',
+      ),
     watermark: z.boolean().optional().default(true),
     stream: z.boolean().optional().default(false),
   })

@@ -266,10 +266,10 @@ export class GeminiAiController {
       processedBody = { ...restBody, ...input };
     }
 
-    // 固定使用 gemini-2.5-flash-image-preview 模型（官方库）
+    // 固定使用 gemini-2.5-flash-image 模型（官方库）
     const result = await this.geminiAiService.executeRequest(
       processedBody,
-      'gemini-2.5-flash-image-preview',
+      'gemini-2.5-flash-image',
       body.baseUrl as string | undefined,
     );
 

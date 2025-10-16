@@ -1,0 +1,8 @@
+{
+  "credential": { "apiKey": "AIzaSyB-9d3jMEMQ1jTc6n3LOZBnmWnvBMeQa7U" },
+  "input": {
+    "prompt": "A minimalist ceramic mug on a concrete surface, studio lighting.",
+    "aspect_ratio": "16:9",
+    "debug": true
+  }
+}
